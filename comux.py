@@ -275,7 +275,7 @@ class ZAIClient:
             "model": self.model,
             "messages": messages,
             "temperature": 0.7,
-            "max_tokens": 4000
+            "max_tokens": 8000  # Increased to prevent truncation
         }
 
         # Retry mechanism
@@ -324,7 +324,11 @@ class ComuxREPL:
         # System prompt
         self.system_prompt = """You are Comux, an interactive command-line coding assistant. You help users with coding tasks by reading, creating, and editing files.
 
-When you need to interact with the filesystem, you MUST respond with ONLY valid JSON in this format:
+IMPORTANT: Your response MUST be either:
+1. Plain text for explanations and discussions
+2. Valid JSON ONLY when you need to interact with files
+
+When you need to interact with the filesystem, respond with ONLY valid JSON in this exact format:
 {
   "tool": "<tool_name>",
   "args": {...}
@@ -332,16 +336,18 @@ When you need to interact with the filesystem, you MUST respond with ONLY valid 
 
 Available tools:
 - read_file: {"path": "relative/path/to/file"}
-- write_file: {"path": "relative/path/to/file", "content": "full file content"}
+- write_file: {"path": "relative/path/to/file", "content": "complete file content"}
 - patch_file: {"path": "relative/path/to/file", "patch": "unified diff"}
 - list_files: {"path": "."}
 
-Rules:
-- Do NOT mix JSON with natural language
-- Do NOT explain the tool call outside JSON
-- If no tool is needed, respond with plain text only
-- Never access files outside the current project directory
-- Prefer patch_file over write_file when editing existing files"""
+CRITICAL RULES:
+- NEVER mix JSON with natural language
+- NEVER write explanations outside JSON when making tool calls
+- ALWAYS provide COMPLETE file content for write_file
+- If you're creating HTML/CSS/JS files, include the FULL code
+- Do NOT truncate file content
+- Never access files outside the current directory
+- For simple questions, respond with plain text only"""
 
     def start(self):
         """Start the REPL session."""
@@ -372,6 +378,13 @@ Rules:
                 # Get AI response
                 response = self._get_ai_response()
                 if response:
+                    # Debug: check if response looks like JSON but incomplete
+                    response_stripped = response.strip()
+                    if response_stripped.startswith('{') and not response_stripped.endswith('}'):
+                        print("\n⚠️  Incomplete JSON response from AI")
+                        print("Raw response:", response[:100] + "..." if len(response) > 100 else response)
+                        continue
+
                     # Handle tool calls or plain text
                     if self._is_tool_call(response):
                         result = self._execute_tool_call(response)
@@ -598,8 +611,9 @@ Environment:
     def _is_tool_call(self, response: str) -> bool:
         """Check if response is a tool call."""
         try:
-            json.loads(response)
-            return True
+            data = json.loads(response)
+            # Check if it has required tool call structure
+            return 'tool' in data and 'args' in data
         except json.JSONDecodeError:
             return False
 
