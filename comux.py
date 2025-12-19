@@ -888,9 +888,11 @@ CRITICAL RULES:
                         if at_pos == 0:
                             # Text starts with @, get the filename part
                             partial = text[1:]  # Remove @
+                            prefix = '@'
                         else:
                             # @ is in the middle, extract filename part after @
                             partial = text[at_pos + 1:]
+                            prefix = text[:at_pos + 1]  # Include the @
 
                         # Get matching files
                         matches = []
@@ -899,21 +901,15 @@ CRITICAL RULES:
                         # Case-sensitive match first
                         for file in all_files:
                             if file.startswith(partial):
-                                # Return the full filename (text[@pos] + file)
-                                if at_pos == 0:
-                                    matches.append(file)
-                                else:
-                                    matches.append(text[:at_pos] + file)
+                                # Always prefix with @
+                                matches.append(prefix + file)
 
                         # If no case-sensitive matches, try case-insensitive
                         if not matches and partial:
                             partial_lower = partial.lower()
                             for file in all_files:
                                 if file.lower().startswith(partial_lower):
-                                    if at_pos == 0:
-                                        matches.append(file)
-                                    else:
-                                        matches.append(text[:at_pos] + file)
+                                    matches.append(prefix + file)
 
                         # Return the match for this state
                         if state < len(matches):
