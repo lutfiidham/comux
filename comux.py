@@ -278,12 +278,38 @@ class ZAIClient:
             "max_tokens": 4000
         }
 
-        try:
-            response = requests.post(self.base_url, headers=headers, json=payload, timeout=30)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            return {"error": f"API request failed: {e}"}
+        # Retry mechanism
+        max_retries = 3
+        timeouts = [60, 90, 120]  # Progressive timeout
+
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    self.base_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=timeouts[attempt],
+                    stream=False
+                )
+
+                # Debug: print status
+                if response.status_code != 200:
+                    return {"error": f"API returned status {response.status_code}: {response.text[:200]}"}
+
+                return response.json()
+            except requests.exceptions.Timeout:
+                if attempt < max_retries - 1:
+                    # Don't print for first retry to avoid noise
+                    if attempt > 0:
+                        print(f"Timeout, retrying... (attempt {attempt + 2}/{max_retries})")
+                    continue
+                return {"error": f"API request timed out after {timeouts[-1]} seconds. Try again later."}
+            except requests.exceptions.ConnectionError as e:
+                return {"error": f"Could not connect to API server: {str(e)}"}
+            except requests.exceptions.RequestException as e:
+                return {"error": f"API request failed: {str(e)}"}
+
+        return {"error": "Failed after multiple retries"}
 
 
 class ComuxREPL:
@@ -419,8 +445,106 @@ Rules:
         elif cmd.startswith('clear'):
             os.system('clear' if os.name == 'posix' else 'cls')
             return True
+        elif cmd == 'offline':
+            self._offline_mode()
+            return True
 
         return False
+
+    def _offline_mode(self):
+        """Create files without API when timeout occurs."""
+        print("\n📝 Offline Mode - Creating file locally...")
+
+        # Get file path from user
+        path = input("Enter file path (e.g., index.html): ").strip()
+        if not path:
+            print("No file path provided")
+            return
+
+        # Default content based on extension
+        ext = path.split('.')[-1].lower()
+        content = ""
+
+        if ext == 'html':
+            content = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beautiful Page</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 3rem;
+            border-radius: 10px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 600px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        p {
+            color: #666;
+            line-height: 1.6;
+        }
+        .button {
+            background: #667eea;
+            color: white;
+            padding: 0.8rem 2rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 1rem;
+        }
+        .button:hover {
+            background: #5a67d8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to My Page</h1>
+        <p>This is a beautiful page created with Comux!</p>
+        <button class="button" onclick="alert('Hello!')">Click Me</button>
+    </div>
+</body>
+</html>"""
+        elif ext == 'js':
+            content = "// JavaScript file\nconsole.log('Hello World!');"
+        elif ext == 'css':
+            content = "/* CSS file */\nbody {\n    font-family: Arial;\n}"
+        elif ext == 'py':
+            content = "# Python file\nprint('Hello World!')"
+        else:
+            content = f"# {ext} file\n\n# Your content here"
+
+        # Create directory if needed
+        if '/' in path:
+            dir_path = '/'.join(path.split('/')[:-1])
+            os.makedirs(dir_path, exist_ok=True)
+
+        # Write file
+        result = self.file_ops.write_file(path, content)
+        if result.get('success'):
+            print(f"✅ Created {path}")
+        else:
+            print(f"❌ Error: {result.get('error')}")
 
     def _show_help(self):
         """Show help information."""
@@ -429,6 +553,7 @@ Comux Commands:
   exit, quit    - Exit the session
   help          - Show this help
   clear         - Clear the screen
+  offline       - Create files without AI (when API is slow)
 
 Usage:
   - Type natural language instructions
@@ -437,8 +562,13 @@ Usage:
     * "Explain what @script.py does"
     * "Fix the bug in @app.js"
     * "Refactor @utils.py to use list comprehensions"
+    * "Create a beautiful index.html file"
   - AI will respond with text or JSON tool calls
   - File operations require confirmation
+
+Tips:
+  - If API times out, use 'offline' command to create templates
+  - Supports HTML, CSS, JS, Python files in offline mode
 
 Environment:
   ZAI_API_KEY   - Your Z.ai API key (required)
@@ -456,7 +586,10 @@ Environment:
                 return response['choices'][0]['message']['content']
             elif response and 'error' in response:
                 return f"API Error: {response['error']}"
-            return None
+            elif response:
+                # Debug: print the actual response
+                return f"Unexpected API response: {str(response)[:200]}"
+            return "No response from API"
         finally:
             loading.stop()
             # Small delay to ensure line is clear
