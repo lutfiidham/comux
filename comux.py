@@ -337,8 +337,11 @@ Rules:
                 if self._handle_command(user_input):
                     continue
 
-                # Add user message
-                self.session.add_message("user", user_input)
+                # Process file mentions (@filename)
+                processed_input = self._process_file_mentions(user_input)
+
+                # Add user message (with expanded file content)
+                self.session.add_message("user", processed_input)
 
                 # Get AI response
                 response = self._get_ai_response()
@@ -370,6 +373,39 @@ Rules:
         except EOFError:
             return "exit"
 
+    def _process_file_mentions(self, user_input: str) -> str:
+        """Process file mentions in user input (e.g., @file.py)."""
+        import re
+
+        # Find all @file mentions
+        mentions = re.findall(r'@([^\s@]+)', user_input)
+
+        # Process each mention
+        for filename in mentions:
+            # Try to read the file
+            result = self.file_ops.read_file(filename)
+
+            if 'content' in result:
+                # Replace @file with file content in a code block
+                file_content = result['content']
+                # Limit content size to avoid huge prompts
+                if len(file_content) > 2000:
+                    file_content = file_content[:2000] + "\n... (truncated)"
+
+                # Replace the mention
+                user_input = user_input.replace(
+                    f"@{filename}",
+                    f"\n```file:{filename}\n{file_content}\n```"
+                )
+            else:
+                # File not found, show error
+                user_input = user_input.replace(
+                    f"@{filename}",
+                    f"\n[Error: File '{filename}' not found]"
+                )
+
+        return user_input
+
     def _handle_command(self, user_input: str) -> bool:
         """Handle special REPL commands."""
         cmd = user_input.strip().lower()
@@ -396,7 +432,11 @@ Comux Commands:
 
 Usage:
   - Type natural language instructions
-  - Use multiline input for complex prompts
+  - Use @filename to include file content in your prompt
+  Examples:
+    * "Explain what @script.py does"
+    * "Fix the bug in @app.js"
+    * "Refactor @utils.py to use list comprehensions"
   - AI will respond with text or JSON tool calls
   - File operations require confirmation
 
