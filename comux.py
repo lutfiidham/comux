@@ -942,11 +942,23 @@ CRITICAL RULES:
                 except:
                     pass  # If not supported, continue
 
-                # Get the prompt string with color codes
-                prompt_str = Colors.prompt(">>> ")
+                # Handle prompt with proper color code support for readline
+                # The issue is that readline doesn't know about ANSI color codes
+                # So we need to wrap non-printing characters in \1 and \2
+                if Colors._check_color_support():
+                    # Build prompt with readline-aware color codes
+                    # \1 and \2 tell readline about non-printing characters
+                    prompt_parts = [
+                        '\1', Colors.BOLD + Colors.CYAN, '\2',  # Start colors
+                        '>>> ',                                # Visible text
+                        '\1', Colors.RESET, '\2'              # Reset colors
+                    ]
+                    prompt_str = ''.join(prompt_parts)
+                else:
+                    # No color support, use plain prompt
+                    prompt_str = ">>> "
 
-                # Use input() which respects readline settings
-                # The color codes in prompt should be properly handled
+                # Get input using the properly formatted prompt
                 line = input(prompt_str)
 
                 # Restore original settings
@@ -957,7 +969,8 @@ CRITICAL RULES:
                 return line
             else:
                 # Fallback to regular input
-                line = input(Colors.prompt(">>> "))
+                # For terminals without readline, use simple prompt
+                line = input(">>> ")
                 return line
         except EOFError:
             return "exit"
