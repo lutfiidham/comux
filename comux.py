@@ -858,7 +858,9 @@ CRITICAL RULES:
                         self.session.add_message("assistant", response)
 
             except KeyboardInterrupt:
-                print(f"\n{Colors.warning('Use')} {Colors.prompt('exit')} {Colors.warning('to quit')}{Colors.RESET}")
+                # Ctrl+C pressed, exit gracefully
+                print(f"\n{Colors.BRIGHT_YELLOW}👋 Interrupted. Exiting...{Colors.RESET}")
+                break
             except EOFError:
                 break
             except Exception as e:
@@ -975,12 +977,9 @@ CRITICAL RULES:
         except EOFError:
             return "exit"
         except KeyboardInterrupt:
-            # Handle Ctrl+C gracefully
-            # Print newline and show message
-            print()
-            # Return empty string to continue the loop
-            # or "exit" to quit, let's let the user decide
-            return ""
+            # Handle Ctrl+C by exiting immediately
+            print()  # Newline for clean exit
+            return "exit"
 
     
     def _get_project_files(self) -> List[str]:
