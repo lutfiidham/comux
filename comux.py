@@ -363,33 +363,12 @@ Rules:
         print("\n👋 Session ended")
 
     def _get_input(self) -> str:
-        """Get multiline input from user."""
-        lines = []
-        prompt = ">>> "
-
-        while True:
-            try:
-                line = input(prompt)
-
-                # Handle commands immediately
-                if line.strip().lower() in ['exit', 'quit', 'help', 'clear']:
-                    if lines:  # If we have previous content, return it
-                        lines.append(line)
-                    else:
-                        return line.strip()  # Return command directly
-                    break
-
-                if line.strip() == "":
-                    if lines:
-                        break
-                    continue
-
-                lines.append(line)
-                prompt = "... "
-            except EOFError:
-                break
-
-        return "\n".join(lines)
+        """Get input from user."""
+        try:
+            line = input(">>> ")
+            return line
+        except EOFError:
+            return "exit"
 
     def _handle_command(self, user_input: str) -> bool:
         """Handle special REPL commands."""
