@@ -36,113 +36,94 @@ sys.stdout = Unbuffered(sys.stdout)
 class Colors:
     """Simple color class with auto-detection."""
 
-    def __init__(self):
-        # Check if terminal supports colors
-        self.supports_color = self._check_color_support()
-        self._init_colors()
+    # Initialize color support
+    _supports_color = None
 
-    def _check_color_support(self):
-        """Check if terminal supports colors."""
-        term = os.getenv('TERM', '').lower()
-        colorterm = os.getenv('COLORTERM', '').lower()
+    @classmethod
+    def _check_color_support(cls):
+        if cls._supports_color is None:
+            term = os.getenv('TERM', '').lower()
+            colorterm = os.getenv('COLORTERM', '').lower()
 
-        if colorterm in ['truecolor', '24bit']:
-            return True
-        elif 'color' in term or term in ['xterm-256color', 'screen-256color']:
-            return True
-        elif os.isatty(1):
-            return True
-        return False
+            if colorterm in ['truecolor', '24bit']:
+                cls._supports_color = True
+            elif 'color' in term or term in ['xterm-256color', 'screen-256color']:
+                cls._supports_color = True
+            elif os.isatty(1):
+                cls._supports_color = True
+            else:
+                cls._supports_color = False
 
-    def _init_colors(self):
-        """Initialize color codes."""
-        if self.supports_color:
-            self.RESET = '\033[0m'
-            self.BOLD = '\033[1m'
-            self.DIM = '\033[2m'
-            self.RED = '\033[31m'
-            self.GREEN = '\033[32m'
-            self.YELLOW = '\033[33m'
-            self.BLUE = '\033[34m'
-            self.MAGENTA = '\033[35m'
-            self.CYAN = '\033[36m'
-            self.WHITE = '\033[37m'
-            self.BRIGHT_RED = '\033[91m'
-            self.BRIGHT_GREEN = '\033[92m'
-            self.BRIGHT_YELLOW = '\033[93m'
-            self.BRIGHT_BLUE = '\033[94m'
-            self.BRIGHT_MAGENTA = '\033[95m'
-            self.BRIGHT_CYAN = '\033[96m'
-            self.BRIGHT_WHITE = '\033[97m'
-        else:
-            self.RESET = ''
-            self.BOLD = ''
-            self.DIM = ''
-            self.RED = self.GREEN = self.YELLOW = self.BLUE = ''
-            self.MAGENTA = self.CYAN = self.WHITE = ''
-            self.BRIGHT_RED = self.BRIGHT_GREEN = self.BRIGHT_YELLOW = ''
-            self.BRIGHT_BLUE = self.BRIGHT_MAGENTA = self.BRIGHT_CYAN = ''
-            self.BRIGHT_WHITE = ''
+            # Initialize color codes
+            if cls._supports_color:
+                cls.RESET = '\033[0m'
+                cls.BOLD = '\033[1m'
+                cls.DIM = '\033[2m'
+                cls.RED = '\033[31m'
+                cls.GREEN = '\033[32m'
+                cls.YELLOW = '\033[33m'
+                cls.BLUE = '\033[34m'
+                cls.MAGENTA = '\033[35m'
+                cls.CYAN = '\033[36m'
+                cls.WHITE = '\033[37m'
+                cls.BRIGHT_RED = '\033[91m'
+                cls.BRIGHT_GREEN = '\033[92m'
+                cls.BRIGHT_YELLOW = '\033[93m'
+                cls.BRIGHT_BLUE = '\033[94m'
+                cls.BRIGHT_MAGENTA = '\033[95m'
+                cls.BRIGHT_CYAN = '\033[96m'
+                cls.BRIGHT_WHITE = '\033[97m'
+            else:
+                cls.RESET = ''
+                cls.BOLD = ''
+                cls.DIM = ''
+                cls.RED = cls.GREEN = cls.YELLOW = cls.BLUE = ''
+                cls.MAGENTA = cls.CYAN = cls.WHITE = ''
+                cls.BRIGHT_RED = cls.BRIGHT_GREEN = cls.BRIGHT_YELLOW = ''
+                cls.BRIGHT_BLUE = cls.BRIGHT_MAGENTA = cls.BRIGHT_CYAN = ''
+                cls.BRIGHT_WHITE = ''
 
-    def colorize(self, text, color):
-        return f"{color}{text}{self.RESET}"
+        return cls._supports_color
 
-    def success(self, text):
-        return self.colorize(text, self.BRIGHT_GREEN)
+    @classmethod
+    def colorize(cls, text, color):
+        cls._check_color_support()
+        return f"{color}{text}{cls.RESET}"
 
-    def error(self, text):
-        return self.colorize(text, self.BRIGHT_RED)
+    @classmethod
+    def success(cls, text):
+        return cls.colorize(text, cls.BRIGHT_GREEN)
 
-    def warning(self, text):
-        return self.colorize(text, self.BRIGHT_YELLOW)
+    @classmethod
+    def error(cls, text):
+        return cls.colorize(text, cls.BRIGHT_RED)
 
-    def info(self, text):
-        return self.colorize(text, self.BRIGHT_BLUE)
+    @classmethod
+    def warning(cls, text):
+        return cls.colorize(text, cls.BRIGHT_YELLOW)
 
-    def cyan(self, text):
-        return self.colorize(text, self.CYAN)
+    @classmethod
+    def info(cls, text):
+        return cls.colorize(text, cls.BRIGHT_BLUE)
 
-    def magenta(self, text):
-        return self.colorize(text, self.MAGENTA)
+    @classmethod
+    def cyan(cls, text):
+        return cls.colorize(text, cls.CYAN)
 
-    def prompt(self, text):
-        return self.colorize(text, self.BOLD + self.CYAN)
+    @classmethod
+    def magenta(cls, text):
+        return cls.colorize(text, cls.MAGENTA)
 
-    def header(self, text):
-        return self.colorize(text, self.BOLD + self.BRIGHT_BLUE)
+    @classmethod
+    def prompt(cls, text):
+        return cls.colorize(text, cls.BOLD + cls.CYAN)
 
-# Create global instance
-colors = Colors()
+    @classmethod
+    def header(cls, text):
+        return cls.colorize(text, cls.BOLD + cls.BRIGHT_BLUE)
 
-# Make colors accessible as class attributes
-Colors.RESET = colors.RESET
-Colors.BOLD = colors.BOLD
-Colors.DIM = colors.DIM
-Colors.RED = colors.RED
-Colors.GREEN = colors.GREEN
-Colors.YELLOW = colors.YELLOW
-Colors.BLUE = colors.BLUE
-Colors.MAGENTA = colors.MAGENTA
-Colors.CYAN = colors.CYAN
-Colors.WHITE = colors.WHITE
-Colors.BRIGHT_RED = colors.BRIGHT_RED
-Colors.BRIGHT_GREEN = colors.BRIGHT_GREEN
-Colors.BRIGHT_YELLOW = colors.BRIGHT_YELLOW
-Colors.BRIGHT_BLUE = colors.BRIGHT_BLUE
-Colors.BRIGHT_MAGENTA = colors.BRIGHT_MAGENTA
-Colors.BRIGHT_CYAN = colors.BRIGHT_CYAN
-Colors.BRIGHT_WHITE = colors.BRIGHT_WHITE
-
-# Add class methods
-Colors.colorize = classmethod(lambda cls, text, color: colors.colorize(text, color))
-Colors.success = classmethod(lambda cls, text: colors.success(text))
-Colors.error = classmethod(lambda cls, text: colors.error(text))
-Colors.warning = classmethod(lambda cls, text: colors.warning(text))
-Colors.info = classmethod(lambda cls, text: colors.info(text))
-Colors.cyan = classmethod(lambda cls, text: colors.cyan(text))
-Colors.magenta = classmethod(lambda cls, text: colors.magenta(text))
-Colors.prompt = classmethod(lambda cls, text: colors.prompt(text))
-Colors.header = classmethod(lambda cls, text: colors.header(text))
+# Initialize colors on import
+Colors._check_color_support()
 
 
 class LoadingIndicator:
