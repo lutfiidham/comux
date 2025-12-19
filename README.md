@@ -75,6 +75,21 @@ When typing file references with `@filename`, you can use Tab completion:
 - **Windows**: `pip install pyreadline3`
 - **Termux**: Usually built-in, or `pip install gnureadline` if needed
 
+### Terminal Line Wrapping Issues
+
+If you experience issues with long lines not wrapping properly (text overwriting at line start), you can set custom readline settings:
+
+```bash
+# For Windows Command Prompt
+export COMUX_READLINE_SETTINGS="set preferred-editing-mode vi"
+
+# For older terminals
+export COMUX_READLINE_SETTINGS="set horizontal-scroll-mode On"
+
+# For custom terminal behavior
+export COMUX_READLINE_SETTINGS="set bell-style none,set editing-mode vi"
+```
+
 ## Installation
 
 ### On Android/Termux

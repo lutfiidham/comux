@@ -922,8 +922,32 @@ CRITICAL RULES:
                 readline.set_completer(completer)
                 readline.parse_and_bind("tab: complete")
 
-                # Get input
-                line = input(Colors.prompt(">>> "))
+                # Configure readline for proper line wrapping
+                try:
+                    # Turn off horizontal scrolling to enable line wrapping
+                    readline.parse_and_bind("set horizontal-scroll-mode Off")
+                    # Enable bell (optional)
+                    readline.parse_and_bind("set bell-style audible")
+                    # Set preferred editing mode
+                    readline.parse_and_bind("set editing-mode emacs")
+
+                    # Additional settings for better terminal compatibility
+                    # Check for COMUX_READLINE_SETTINGS environment variable
+                    custom_settings = os.environ.get('COMUX_READLINE_SETTINGS', '')
+                    if custom_settings:
+                        for setting in custom_settings.split(','):
+                            setting = setting.strip()
+                            if setting:
+                                readline.parse_and_bind(setting)
+                except:
+                    pass  # If not supported, continue
+
+                # Get the prompt string with color codes
+                prompt_str = Colors.prompt(">>> ")
+
+                # Use input() which respects readline settings
+                # The color codes in prompt should be properly handled
+                line = input(prompt_str)
 
                 # Restore original settings
                 readline.set_completer(old_completer)
