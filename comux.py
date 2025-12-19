@@ -307,6 +307,135 @@ class FileOperations:
         except Exception as e:
             return {"error": str(e)}
 
+    def create_directory(self, path: str) -> Dict[str, Any]:
+        """Create a new directory."""
+        try:
+            full_path = self._resolve_path(path)
+            full_path.mkdir(parents=True, exist_ok=True)
+            return {"success": True, "path": str(full_path)}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def delete_file(self, path: str) -> Dict[str, Any]:
+        """Delete a file."""
+        try:
+            full_path = self._resolve_path(path)
+            if not full_path.is_file():
+                return {"error": f"File not found: {path}"}
+
+            full_path.unlink()
+            return {"success": True, "path": str(full_path)}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def delete_directory(self, path: str, recursive: bool = False) -> Dict[str, Any]:
+        """Delete a directory."""
+        try:
+            full_path = self._resolve_path(path)
+            if not full_path.is_dir():
+                return {"error": f"Directory not found: {path}"}
+
+            if recursive:
+                import shutil
+                shutil.rmtree(full_path)
+            else:
+                full_path.rmdir()
+            return {"success": True, "path": str(full_path)}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def copy_file(self, source: str, destination: str) -> Dict[str, Any]:
+        """Copy a file."""
+        try:
+            src_path = self._resolve_path(source)
+            dst_path = self._resolve_path(destination)
+
+            if not src_path.is_file():
+                return {"error": f"Source file not found: {source}"}
+
+            import shutil
+            shutil.copy2(src_path, dst_path)
+            return {"success": True, "source": str(src_path), "destination": str(dst_path)}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def move_file(self, source: str, destination: str) -> Dict[str, Any]:
+        """Move/rename a file."""
+        try:
+            src_path = self._resolve_path(source)
+            dst_path = self._resolve_path(destination)
+
+            if not src_path.exists():
+                return {"error": f"Source not found: {source}"}
+
+            src_path.rename(dst_path)
+            return {"success": True, "source": str(src_path), "destination": str(dst_path)}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def file_exists(self, path: str) -> Dict[str, Any]:
+        """Check if file/directory exists."""
+        try:
+            full_path = self._resolve_path(path)
+            return {"exists": full_path.exists(), "type": "file" if full_path.is_file() else "directory" if full_path.is_dir() else "unknown"}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def search_in_files(self, pattern: str, path: str = ".", file_types: List[str] = None) -> Dict[str, Any]:
+        """Search for pattern in files."""
+        try:
+            import fnmatch
+
+            full_path = self._resolve_path(path)
+            if file_types is None:
+                file_types = ['py', 'js', 'ts', 'java', 'cpp', 'c', 'h', 'html', 'css', 'md', 'txt']
+
+            results = []
+            pattern_re = re.compile(pattern, re.IGNORECASE)
+
+            for root, dirs, files in os.walk(full_path):
+                # Skip hidden directories
+                dirs[:] = [d for d in dirs if not d.startswith('.')]
+
+                for file in files:
+                    if any(file.endswith(f'.{ext}') for ext in file_types):
+                        file_path = Path(root) / file
+                        try:
+                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                for line_num, line in enumerate(f, 1):
+                                    if pattern_re.search(line):
+                                        relative_path = file_path.relative_to(self.work_dir)
+                                        results.append({
+                                            "file": str(relative_path),
+                                            "line": line_num,
+                                            "content": line.strip()
+                                        })
+                        except:
+                            continue
+
+            return {"matches": results, "total": len(results)}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_file_info(self, path: str) -> Dict[str, Any]:
+        """Get file information."""
+        try:
+            full_path = self._resolve_path(path)
+            if not full_path.exists():
+                return {"error": f"Path not found: {path}"}
+
+            stat = full_path.stat()
+            return {
+                "name": full_path.name,
+                "path": str(full_path),
+                "type": "directory" if full_path.is_dir() else "file",
+                "size": stat.st_size,
+                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                "permissions": oct(stat.st_mode)[-3:]
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
     def _resolve_path(self, path: str) -> Path:
         """Resolve path relative to work directory."""
         return (self.work_dir / path).resolve()
@@ -350,6 +479,178 @@ class FileOperations:
         """Ask for user confirmation."""
         response = input(f"{message} [y/N] ").strip().lower()
         return response in ['y', 'yes']
+
+
+class ShellOperations:
+    """Handles shell command execution safely."""
+
+    def __init__(self, work_dir: str = "."):
+        self.work_dir = Path(work_dir).resolve()
+
+    def run_command(self, command: str, capture_output: bool = True) -> Dict[str, Any]:
+        """Run a shell command."""
+        try:
+            import shlex
+
+            # Change to work directory
+            cwd = str(self.work_dir)
+
+            if capture_output:
+                result = subprocess.run(
+                    command,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    cwd=cwd,
+                    timeout=30
+                )
+                return {
+                    "success": result.returncode == 0,
+                    "exit_code": result.returncode,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr
+                }
+            else:
+                # Run without capturing (interactive)
+                process = subprocess.Popen(
+                    command,
+                    shell=True,
+                    cwd=cwd,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr
+                )
+                process.wait()
+                return {
+                    "success": process.returncode == 0,
+                    "exit_code": process.returncode
+                }
+
+        except subprocess.TimeoutExpired:
+            return {"error": "Command timed out after 30 seconds"}
+        except Exception as e:
+            return {"error": str(e)}
+
+
+class GitOperations:
+    """Handles git operations."""
+
+    def __init__(self, work_dir: str = "."):
+        self.work_dir = Path(work_dir).resolve()
+        self.shell_ops = ShellOperations(work_dir)
+
+    def _is_git_repo(self) -> bool:
+        """Check if current directory is a git repository."""
+        git_dir = self.work_dir / '.git'
+        return git_dir.exists() or git_dir.is_dir()
+
+    def git_status(self) -> Dict[str, Any]:
+        """Get git status."""
+        if not self._is_git_repo():
+            return {"error": "Not a git repository"}
+
+        result = self.shell_ops.run_command("git status --porcelain", capture_output=True)
+        if not result["success"]:
+            return {"error": result["stderr"]}
+
+        # Parse porcelain output
+        files = []
+        for line in result["stdout"].splitlines():
+            if line:
+                status = line[:2]
+                path = line[3:]
+                files.append({
+                    "status": status,
+                    "staged": status[0] if status[0] != " " else None,
+                    "unstaged": status[1] if status[1] != " " else None,
+                    "path": path
+                })
+
+        return {
+            "success": True,
+            "branch": self._get_current_branch(),
+            "files": files,
+            "clean": len(files) == 0
+        }
+
+    def _get_current_branch(self) -> str:
+        """Get current git branch."""
+        try:
+            result = self.shell_ops.run_command("git rev-parse --abbrev-ref HEAD", capture_output=True)
+            if result["success"]:
+                return result["stdout"].strip()
+            return "unknown"
+        except:
+            return "unknown"
+
+    def git_diff(self, file_path: str = None, staged: bool = False) -> Dict[str, Any]:
+        """Get git diff."""
+        if not self._is_git_repo():
+            return {"error": "Not a git repository"}
+
+        cmd = "git diff"
+        if staged:
+            cmd = "git diff --staged"
+        if file_path:
+            cmd += f" {file_path}"
+
+        result = self.shell_ops.run_command(cmd, capture_output=True)
+        if not result["success"]:
+            return {"error": result["stderr"]}
+
+        return {"success": True, "diff": result["stdout"]}
+
+    def git_log(self, limit: int = 10, file_path: str = None) -> Dict[str, Any]:
+        """Get git log."""
+        if not self._is_git_repo():
+            return {"error": "Not a git repository"}
+
+        cmd = f"git log --oneline -n {limit} --format=\"%H|%h|%s|%an|%ad\" --date=iso"
+        if file_path:
+            cmd += f" -- {file_path}"
+
+        result = self.shell_ops.run_command(cmd, capture_output=True)
+        if not result["success"]:
+            return {"error": result["stderr"]}
+
+        commits = []
+        for line in result["stdout"].splitlines():
+            if line:
+                parts = line.split('|', 4)
+                if len(parts) == 5:
+                    commits.append({
+                        "hash": parts[0],
+                        "short_hash": parts[1],
+                        "message": parts[2],
+                        "author": parts[3],
+                        "date": parts[4]
+                    })
+
+        return {"success": True, "commits": commits}
+
+    def git_add(self, files: List[str] = None) -> Dict[str, Any]:
+        """Add files to git staging."""
+        if not self._is_git_repo():
+            return {"error": "Not a git repository"}
+
+        if not files:
+            cmd = "git add ."
+        else:
+            cmd = f"git add {' '.join(files)}"
+
+        result = self.shell_ops.run_command(cmd, capture_output=True)
+        return {"success": result["success"], "message": result["stderr"] or "Files staged successfully"}
+
+    def git_commit(self, message: str) -> Dict[str, Any]:
+        """Create a git commit."""
+        if not self._is_git_repo():
+            return {"error": "Not a git repository"}
+
+        cmd = f'git commit -m "{message}"'
+        result = self.shell_ops.run_command(cmd, capture_output=True)
+        if not result["success"]:
+            return {"error": result["stderr"]}
+
+        return {"success": True, "message": "Commit created successfully"}
 
 
 class ZAIClient:
@@ -417,6 +718,8 @@ class ComuxREPL:
     def __init__(self):
         self.session = ComuxSession()
         self.file_ops = FileOperations()
+        self.shell_ops = ShellOperations()
+        self.git_ops = GitOperations()
         self.client = ZAIClient()
         self.running = False
 
@@ -438,6 +741,20 @@ Available tools:
 - write_file: {"path": "relative/path/to/file", "content": "complete file content"}
 - patch_file: {"path": "relative/path/to/file", "patch": "unified diff"}
 - list_files: {"path": "."}
+- create_directory: {"path": "folder/name"}
+- delete_file: {"path": "file/to/delete"}
+- delete_directory: {"path": "folder/to/delete", "recursive": false}
+- copy_file: {"source": "from/path", "destination": "to/path"}
+- move_file: {"source": "old/path", "destination": "new/path"}
+- file_exists: {"path": "check/this/file"}
+- get_file_info: {"path": "file/path"}
+- search_in_files: {"pattern": "regex", "path": ".", "file_types": ["py", "js", "ts"]}
+- run_command: {"command": "shell command", "capture_output": true}
+- git_status: {}
+- git_diff: {"file_path": "file.py", "staged": false}
+- git_log: {"limit": 10, "file": "file.py"}
+- git_add: {"files": ["file1.py", "file2.py"]}
+- git_commit: {"message": "Commit message"}
 
 CRITICAL RULES:
 - NEVER mix JSON with natural language
@@ -736,6 +1053,7 @@ CRITICAL RULES:
             tool = data.get('tool')
             args = data.get('args', {})
 
+            # File operations
             if tool == 'read_file':
                 result = self.file_ops.read_file(args['path'])
                 if 'error' in result:
@@ -746,13 +1064,13 @@ CRITICAL RULES:
                 result = self.file_ops.write_file(args['path'], args['content'])
                 if 'error' in result:
                     return f"Error: {result['error']}"
-                return f"File written: {result['path']}"
+                return f"✓ File written: {result['path']}"
 
             elif tool == 'patch_file':
                 result = self.file_ops.patch_file(args['path'], args['patch'])
                 if 'error' in result:
                     return f"Error: {result['error']}"
-                return f"File patched: {result['path']}" if result.get('success') else result.get('message', 'Patch failed')
+                return f"✓ File patched: {result['path']}" if result.get('success') else result.get('message', 'Patch failed')
 
             elif tool == 'list_files':
                 result = self.file_ops.list_files(args.get('path', '.'))
@@ -762,14 +1080,175 @@ CRITICAL RULES:
                 output = []
                 for item in result['files']:
                     icon = "📁" if item['type'] == 'directory' else "📄"
-                    output.append(f"{icon} {item['name']}")
+                    size = f" ({item['size']} bytes)" if item['type'] == 'file' else ""
+                    output.append(f"{icon} {item['name']}{size}")
                 return '\n'.join(output)
 
-            else:
-                return f"Unknown tool: {tool}"
+            elif tool == 'create_directory':
+                result = self.file_ops.create_directory(args['path'])
+                if 'error' in result:
+                    return f"Error: {result['error']}"
+                return f"✓ Directory created: {result['path']}"
 
+            elif tool == 'delete_file':
+                result = self.file_ops.delete_file(args['path'])
+                if 'error' in result:
+                    return f"Error: {result['error']}"
+                return f"✓ File deleted: {result['path']}"
+
+            elif tool == 'delete_directory':
+                recursive = args.get('recursive', False)
+                result = self.file_ops.delete_directory(args['path'], recursive)
+                if 'error' in result:
+                    return f"Error: {result['error']}"
+                return f"✓ Directory deleted: {result['path']}"
+
+            elif tool == 'copy_file':
+                result = self.file_ops.copy_file(args['source'], args['destination'])
+                if 'error' in result:
+                    return f"Error: {result['error']}"
+                return f"✓ File copied from {result['source']} to {result['destination']}"
+
+            elif tool == 'move_file':
+                result = self.file_ops.move_file(args['source'], args['destination'])
+                if 'error' in result:
+                    return f"Error: {result['error']}"
+                return f"✓ File moved from {result['source']} to {result['destination']}"
+
+            elif tool == 'file_exists':
+                result = self.file_ops.file_exists(args['path'])
+                if 'error' in result:
+                    return f"Error: {result['error']}"
+                status = "✓ exists" if result['exists'] else "✗ does not exist"
+                return f"Path {args['path']} {status} (type: {result['type']})"
+
+            elif tool == 'get_file_info':
+                result = self.file_ops.get_file_info(args['path'])
+                if 'error' in result:
+                    return f"Error: {result['error']}"
+                return f"""File Info:
+Name: {result['name']}
+Path: {result['path']}
+Type: {result['type']}
+Size: {result['size']} bytes
+Modified: {result['modified']}
+Permissions: {result['permissions']}"""
+
+            elif tool == 'search_in_files':
+                pattern = args['pattern']
+                path = args.get('path', '.')
+                file_types = args.get('file_types', None)
+                result = self.file_ops.search_in_files(pattern, path, file_types)
+                if 'error' in result:
+                    return f"Error: {result['error']}"
+
+                if result['total'] == 0:
+                    return f"No matches found for pattern: {pattern}"
+
+                output = [f"Found {result['total']} matches for pattern: {pattern}"]
+                for match in result['matches'][:20]:  # Limit to 20 results
+                    output.append(f"  {match['file']}:{match['line']} - {match['content']}")
+
+                if result['total'] > 20:
+                    output.append(f"  ... and {result['total'] - 20} more matches")
+
+                return '\n'.join(output)
+
+            # Shell operations
+            elif tool == 'run_command':
+                command = args['command']
+                capture = args.get('capture_output', True)
+                result = self.shell_ops.run_command(command, capture)
+
+                if 'error' in result:
+                    return f"Error: {result['error']}"
+
+                if capture:
+                    output = []
+                    output.append(f"Command: {command}")
+                    output.append(f"Exit code: {result['exit_code']}")
+                    if result['stdout']:
+                        output.append(f"Output:\n{result['stdout']}")
+                    if result['stderr']:
+                        output.append(f"Error:\n{result['stderr']}")
+                    return '\n'.join(output)
+                else:
+                    return f"✓ Command executed: {command}"
+
+            # Git operations
+            elif tool == 'git_status':
+                result = self.git_ops.git_status()
+                if 'error' in result:
+                    return f"Error: {result['error']}"
+
+                output = [f"Git Status (branch: {result['branch']})"]
+                if result['clean']:
+                    output.append("  Working directory clean")
+                else:
+                    for file in result['files']:
+                        status_icons = {
+                            'A': '🟢',  # Added
+                            'M': '🟡',  # Modified
+                            'D': '🔴',  # Deleted
+                            'R': '🔄',  # Renamed
+                            'C': '🆕',  # Copied
+                            '??': '❓',  # Untracked
+                            '!!': '🚫',  # Ignored
+                        }
+                        staged = status_icons.get(file['staged'], '  ') if file['staged'] else '  '
+                        unstaged = status_icons.get(file['unstaged'], '  ') if file['unstaged'] else '  '
+                        output.append(f"  {staged}{unstaged} {file['path']}")
+
+                return '\n'.join(output)
+
+            elif tool == 'git_diff':
+                file_path = args.get('file_path')
+                staged = args.get('staged', False)
+                result = self.git_ops.git_diff(file_path, staged)
+                if 'error' in result:
+                    return f"Error: {result['error']}"
+
+                if not result['diff']:
+                    return "No differences found"
+
+                return result['diff']
+
+            elif tool == 'git_log':
+                limit = args.get('limit', 10)
+                file_path = args.get('file')
+                result = self.git_ops.git_log(limit, file_path)
+                if 'error' in result:
+                    return f"Error: {result['error']}"
+
+                output = []
+                for commit in result['commits']:
+                    output.append(f"  {commit['short_hash']} - {commit['message']} ({commit['author']}, {commit['date'][:10]})")
+
+                return '\n'.join(output)
+
+            elif tool == 'git_add':
+                files = args.get('files')
+                result = self.git_ops.git_add(files)
+                if 'error' in result:
+                    return f"Error: {result['error']}"
+                return f"✓ {result['message']}"
+
+            elif tool == 'git_commit':
+                message = args['message']
+                result = self.git_ops.git_commit(message)
+                if 'error' in result:
+                    return f"Error: {result['error']}"
+                return f"✓ {result['message']}"
+
+            else:
+                return f"❌ Unknown tool: {tool}"
+
+        except json.JSONDecodeError as e:
+            return f"❌ Invalid JSON in tool call: {e}"
+        except KeyError as e:
+            return f"❌ Missing required argument: {e}"
         except Exception as e:
-            return f"Tool execution error: {e}"
+            return f"❌ Tool execution error: {e}"
 
 
 def main():

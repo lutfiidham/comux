@@ -5,12 +5,48 @@ An offline-first CLI tool for interactive coding sessions with AI assistance, de
 ## Features
 
 - **Interactive REPL**: Continuous chat sessions with context persistence
-- **File Operations**: Read, create, and edit files safely
+- **File Operations**: Read, create, copy, move, and delete files
+- **Directory Management**: Create, list, and delete directories
+- **Code Search**: Search patterns across multiple files
+- **Git Integration**: Status, diff, log, add, and commit operations
+- **Shell Commands**: Execute system commands safely
 - **Session Memory**: Automatically saves and resumes conversations
 - **Tool Calling**: Structured JSON-based tool invocation
 - **Loading Indicator**: Animated spinner while waiting for AI responses
 - **Offline-First**: Works without internet except for API calls
 - **Minimal Dependencies**: Only requires `requests` library
+
+## Available Tools
+
+Comux provides 20+ AI-powered tools for coding assistance:
+
+### File System
+- `read_file` - Read file contents
+- `write_file` - Write or overwrite files
+- `patch_file` - Apply unified diff patches
+- `list_files` - List directory contents
+- `create_directory` - Create new directories
+- `delete_file` - Delete files
+- `delete_directory` - Delete directories (with recursive option)
+- `copy_file` - Copy files
+- `move_file` - Move/rename files
+- `file_exists` - Check if file/directory exists
+- `get_file_info` - Get detailed file information
+
+### Code Analysis
+- `search_in_files` - Search patterns across multiple files with regex support
+
+### Shell Operations
+- `run_command` - Execute shell commands safely
+
+### Git Operations
+- `git_status` - View git repository status
+- `git_diff` - View file changes
+- `git_log` - View commit history
+- `git_add` - Stage files for commit
+- `git_commit` - Create commits
+
+For complete documentation, see [TOOLS.md](TOOLS.md).
 
 ## Installation
 
