@@ -129,12 +129,12 @@ class Colors:
         return cls.colorize(text, cls.BRIGHT_GREEN)
 
     @classmethod
-    def error(cls, text):
-        return cls.colorize(text, cls.BRIGHT_RED)
-
-    @classmethod
     def warning(cls, text):
         return cls.colorize(text, cls.BRIGHT_YELLOW)
+
+    @classmethod
+    def error(cls, text):
+        return cls.colorize(text, cls.BRIGHT_RED)
 
     @classmethod
     def info(cls, text):
@@ -858,7 +858,7 @@ CRITICAL RULES:
                         self.session.add_message("assistant", response)
 
             except KeyboardInterrupt:
-                print(f"\n{Colors.WARNING}Use {Colors.CYAN}'exit'{Colors.WARNING} to quit{Colors.RESET}")
+                print(f"\n{Colors.warning('Use')} {Colors.prompt('exit')} {Colors.warning('to quit')}{Colors.RESET}")
             except EOFError:
                 break
             except Exception as e:
@@ -974,6 +974,13 @@ CRITICAL RULES:
                 return line
         except EOFError:
             return "exit"
+        except KeyboardInterrupt:
+            # Handle Ctrl+C gracefully
+            # Print newline and show message
+            print()
+            # Return empty string to continue the loop
+            # or "exit" to quit, let's let the user decide
+            return ""
 
     
     def _get_project_files(self) -> List[str]:
