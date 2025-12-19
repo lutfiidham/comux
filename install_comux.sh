@@ -1,10 +1,7 @@
 #!/bin/bash
-# Installation script for Termux
+# Simple installation script for Comux (no pip installation)
 
-echo "Installing comux for Termux..."
-
-# Install dependencies
-pip install -r requirements.txt
+echo "📦 Installing Comux..."
 
 # Create user bin directory if it doesn't exist
 mkdir -p ~/../usr/bin
@@ -35,9 +32,16 @@ source "$BASHRC" 2>/dev/null || true
 
 # Verify installation
 if command -v comux &> /dev/null; then
-    echo "✅ comux installed successfully!"
-    echo "Run 'comux' to start"
-    echo "Run 'comux-update' to update from GitHub"
+    echo ""
+    echo "✅ Comux installed successfully!"
+    echo ""
+    echo "📌 Next steps:"
+    echo "   1. Install dependencies: pip install -r requirements.txt"
+    echo "   2. Set API key: export ZAI_API_KEY=your_api_key"
+    echo "   3. Run Comux: comux"
+    echo ""
+    echo "💡 For full setup with dependencies, run:"
+    echo "   ./setup_termux.sh"
 else
     echo "❌ Installation failed"
     echo "Make sure ~/../usr/bin is in your PATH"

@@ -114,28 +114,33 @@ Quantum computing is a revolutionary approach to computation that leverages the 
 ### On Android/Termux
 
 ```bash
-# Method 1: Automated setup (recommended)
+# Method 1: Full automated setup (recommended)
 git clone https://github.com/lutfiidham/comux.git
 cd comux
 chmod +x setup_termux.sh
 ./setup_termux.sh
 
-# Method 2: Manual setup
-# Install Python and required packages
+# Method 2: Quick installation (no dependencies)
+git clone https://github.com/lutfiidham/comux.git
+cd comux
+chmod +x install_comux.sh
+./install_comux.sh
+
+# Then manually install dependencies:
+pip install -r requirements.txt
+
+# Method 3: Manual setup
+# Install packages
 pkg update && pkg install python clang make libffi
 
-# Install Python dependencies
-pip install -r requirements.txt
-# If autocomplete doesn't work, install: pip install gnureadline
+# Install dependencies with --user flag
+pip install --user -r requirements.txt
+# If autocomplete doesn't work: pip install --user gnureadline
 
 # Install Comux
-pip install -e .
+pip install --user -e .
 
-# Create command alias
-echo 'alias comux="python -m comux"' >> ~/.bashrc
-source ~/.bashrc
-
-# Method 3: Create symlink
+# Create command
 ln -sf "$(pwd)/comux.py" ~/../usr/bin/comux
 chmod +x ~/../usr/bin/comux
 ```
@@ -143,8 +148,13 @@ chmod +x ~/../usr/bin/comux
 **Autocomplete in Termux:**
 
 - Most Termux environments have readline built-in
-- If autocomplete doesn't work, install: `pip install gnureadline`
+- If autocomplete doesn't work: `pip install --user gnureadline`
 - Use Tab after `@` for file completion: `@filename[TAB]`
+
+**Installation Scripts:**
+
+- `setup_termux.sh` - Complete setup with all dependencies
+- `install_comux.sh` - Quick installation without dependencies
 
 ### Using pip (recommended for non-Termux systems)
 
