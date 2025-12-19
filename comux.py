@@ -32,118 +32,117 @@ class Unbuffered:
 
 sys.stdout = Unbuffered(sys.stdout)
 
-# Color class for terminal output
+# Simple color class
 class Colors:
-    # Check if terminal supports colors
-    _supports_color = None
+    """Simple color class with auto-detection."""
 
-    @classmethod
-    def _check_color_support(cls):
+    def __init__(self):
+        # Check if terminal supports colors
+        self.supports_color = self._check_color_support()
+        self._init_colors()
+
+    def _check_color_support(self):
         """Check if terminal supports colors."""
-        if cls._supports_color is not None:
-            return cls._supports_color
-
-        # Check TERM environment variable
         term = os.getenv('TERM', '').lower()
         colorterm = os.getenv('COLORTERM', '').lower()
 
-        # Check for color support
         if colorterm in ['truecolor', '24bit']:
-            cls._supports_color = True
-        elif 'color' in term or term in ['xterm-256color', 'screen-256color', 'tmux-256color']:
-            cls._supports_color = True
-        elif os.isatty(1):  # Check if stdout is a terminal
-            # Try to get color count
-            try:
-                import curses
-                curses.setupterm()
-                colors = curses.tigetnum('colors')
-                cls._supports_color = colors >= 8
-            except:
-                # Fallback: try a simple test
-                cls._supports_color = True
+            return True
+        elif 'color' in term or term in ['xterm-256color', 'screen-256color']:
+            return True
+        elif os.isatty(1):
+            return True
+        return False
+
+    def _init_colors(self):
+        """Initialize color codes."""
+        if self.supports_color:
+            self.RESET = '\033[0m'
+            self.BOLD = '\033[1m'
+            self.DIM = '\033[2m'
+            self.RED = '\033[31m'
+            self.GREEN = '\033[32m'
+            self.YELLOW = '\033[33m'
+            self.BLUE = '\033[34m'
+            self.MAGENTA = '\033[35m'
+            self.CYAN = '\033[36m'
+            self.WHITE = '\033[37m'
+            self.BRIGHT_RED = '\033[91m'
+            self.BRIGHT_GREEN = '\033[92m'
+            self.BRIGHT_YELLOW = '\033[93m'
+            self.BRIGHT_BLUE = '\033[94m'
+            self.BRIGHT_MAGENTA = '\033[95m'
+            self.BRIGHT_CYAN = '\033[96m'
+            self.BRIGHT_WHITE = '\033[97m'
         else:
-            cls._supports_color = False
+            self.RESET = ''
+            self.BOLD = ''
+            self.DIM = ''
+            self.RED = self.GREEN = self.YELLOW = self.BLUE = ''
+            self.MAGENTA = self.CYAN = self.WHITE = ''
+            self.BRIGHT_RED = self.BRIGHT_GREEN = self.BRIGHT_YELLOW = ''
+            self.BRIGHT_BLUE = self.BRIGHT_MAGENTA = self.BRIGHT_CYAN = ''
+            self.BRIGHT_WHITE = ''
 
-        return cls._supports_color
+    def colorize(self, text, color):
+        return f"{color}{text}{self.RESET}"
 
-    # Define colors that work in most terminals
-    if _check_color_support():
-        # ANSI color codes
-        RESET = '\033[0m'
-        BOLD = '\033[1m'
-        DIM = '\033[2m'
+    def success(self, text):
+        return self.colorize(text, self.BRIGHT_GREEN)
 
-        # Basic colors (works on 8-color terminals)
-        RED = '\033[31m'
-        GREEN = '\033[32m'
-        YELLOW = '\033[33m'
-        BLUE = '\033[34m'
-        MAGENTA = '\033[35m'
-        CYAN = '\033[36m'
-        WHITE = '\033[37m'
+    def error(self, text):
+        return self.colorize(text, self.BRIGHT_RED)
 
-        # Try bright colors (may not work everywhere)
-        BRIGHT_RED = '\033[91m'
-        BRIGHT_GREEN = '\033[92m'
-        BRIGHT_YELLOW = '\033[93m'
-        BRIGHT_BLUE = '\033[94m'
-        BRIGHT_MAGENTA = '\033[95m'
-        BRIGHT_CYAN = '\033[96m'
-        BRIGHT_WHITE = '\033[97m'
-    else:
-        # No color support
-        RESET = ''
-        BOLD = ''
-        DIM = ''
-        RED = GREEN = YELLOW = BLUE = MAGENTA = CYAN = WHITE = ''
-        BRIGHT_RED = BRIGHT_GREEN = BRIGHT_YELLOW = ''
-        BRIGHT_BLUE = BRIGHT_MAGENTA = BRIGHT_CYAN = BRIGHT_WHITE = ''
+    def warning(self, text):
+        return self.colorize(text, self.BRIGHT_YELLOW)
 
-    @classmethod
-    def colorize(cls, text, color):
-        """Apply color to text."""
-        return f"{color}{text}{cls.RESET}"
+    def info(self, text):
+        return self.colorize(text, self.BRIGHT_BLUE)
 
-    @classmethod
-    def success(cls, text):
-        """Green text for success."""
-        return cls.colorize(text, cls.BRIGHT_GREEN)
+    def cyan(self, text):
+        return self.colorize(text, self.CYAN)
 
-    @classmethod
-    def error(cls, text):
-        """Red text for errors."""
-        return cls.colorize(text, cls.BRIGHT_RED)
+    def magenta(self, text):
+        return self.colorize(text, self.MAGENTA)
 
-    @classmethod
-    def warning(cls, text):
-        """Yellow text for warnings."""
-        return cls.colorize(text, cls.BRIGHT_YELLOW)
+    def prompt(self, text):
+        return self.colorize(text, self.BOLD + self.CYAN)
 
-    @classmethod
-    def info(cls, text):
-        """Blue text for info."""
-        return cls.colorize(text, cls.BRIGHT_BLUE)
+    def header(self, text):
+        return self.colorize(text, self.BOLD + self.BRIGHT_BLUE)
 
-    @classmethod
-    def cyan(cls, text):
-        """Cyan text."""
-        return cls.colorize(text, cls.CYAN)
+# Create global instance
+colors = Colors()
 
-    @classmethod
-    def magenta(cls, text):
-        """Magenta text."""
-        return cls.colorize(text, cls.MAGENTA)
+# Make colors accessible as class attributes
+Colors.RESET = colors.RESET
+Colors.BOLD = colors.BOLD
+Colors.DIM = colors.DIM
+Colors.RED = colors.RED
+Colors.GREEN = colors.GREEN
+Colors.YELLOW = colors.YELLOW
+Colors.BLUE = colors.BLUE
+Colors.MAGENTA = colors.MAGENTA
+Colors.CYAN = colors.CYAN
+Colors.WHITE = colors.WHITE
+Colors.BRIGHT_RED = colors.BRIGHT_RED
+Colors.BRIGHT_GREEN = colors.BRIGHT_GREEN
+Colors.BRIGHT_YELLOW = colors.BRIGHT_YELLOW
+Colors.BRIGHT_BLUE = colors.BRIGHT_BLUE
+Colors.BRIGHT_MAGENTA = colors.BRIGHT_MAGENTA
+Colors.BRIGHT_CYAN = colors.BRIGHT_CYAN
+Colors.BRIGHT_WHITE = colors.BRIGHT_WHITE
 
-    @classmethod
-    def prompt(cls, text):
-        """Cyan bold for prompts."""
-        return cls.colorize(text, cls.BOLD + cls.CYAN)
-
-    @classmethod
-    def header(cls, text):
-        """Blue bold for headers."""
-        return cls.colorize(text, cls.BOLD + cls.BRIGHT_BLUE)
+# Add class methods
+Colors.colorize = classmethod(lambda cls, text, color: colors.colorize(text, color))
+Colors.success = classmethod(lambda cls, text: colors.success(text))
+Colors.error = classmethod(lambda cls, text: colors.error(text))
+Colors.warning = classmethod(lambda cls, text: colors.warning(text))
+Colors.info = classmethod(lambda cls, text: colors.info(text))
+Colors.cyan = classmethod(lambda cls, text: colors.cyan(text))
+Colors.magenta = classmethod(lambda cls, text: colors.magenta(text))
+Colors.prompt = classmethod(lambda cls, text: colors.prompt(text))
+Colors.header = classmethod(lambda cls, text: colors.header(text))
 
 
 class LoadingIndicator:
