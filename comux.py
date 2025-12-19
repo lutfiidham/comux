@@ -28,7 +28,8 @@ class LoadingIndicator:
         self.message = message
         self.running = False
         self.thread = None
-        self.spinner = itertools.cycle(['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'])
+        # Use simple characters compatible with Termux
+        self.spinner = itertools.cycle(['|', '/', '-', '\\'])
 
     def start(self):
         """Start the loading animation."""
@@ -41,21 +42,21 @@ class LoadingIndicator:
         """Stop the loading animation."""
         self.running = False
         if self.thread:
-            self.thread.join()
-        # Clear the line and move to beginning of line
-        sys.stdout.write('\r' + ' ' * (len(self.message) + 3) + '\r')
+            self.thread.join(timeout=0.2)  # Add timeout
+        # Clear the line completely
+        sys.stdout.write('\r' + ' ' * 50 + '\r')
         sys.stdout.flush()
 
     def _animate(self):
         """Internal animation loop."""
-        # Small delay to ensure previous operations complete
-        time.sleep(0.02)
+        # Ensure we start on a clean line
+        time.sleep(0.05)
         while self.running:
-            # Clear entire line and write spinner
-            sys.stdout.write('\r\033[K')  # \r=carriage return, \033[K=clear line
-            sys.stdout.write(f'{self.message} {next(self.spinner)}')
+            # Use simple string operations for Termux compatibility
+            line = f'\r{self.message} {next(self.spinner)}'
+            sys.stdout.write(line)
             sys.stdout.flush()
-            time.sleep(0.1)
+            time.sleep(0.15)
 
 
 class ComuxSession:
@@ -316,10 +317,6 @@ Rules:
                 # Add user message
                 self.session.add_message("user", user_input)
 
-                # Clear any remaining prompt characters
-                sys.stdout.write('\r')
-                sys.stdout.flush()
-
                 # Get AI response
                 response = self._get_ai_response()
                 if response:
@@ -350,10 +347,20 @@ Rules:
         while True:
             try:
                 line = input(prompt)
+
+                # Handle commands immediately
+                if line.strip().lower() in ['exit', 'quit', 'help', 'clear']:
+                    if lines:  # If we have previous content, return it
+                        lines.append(line)
+                    else:
+                        return line.strip()  # Return command directly
+                    break
+
                 if line.strip() == "":
                     if lines:
                         break
                     continue
+
                 lines.append(line)
                 prompt = "... "
             except EOFError:
