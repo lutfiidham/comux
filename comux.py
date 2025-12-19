@@ -20,6 +20,40 @@ from typing import Dict, List, Optional, Any, Tuple
 
 import requests
 
+# Try to import readline for better input handling
+# Termux and most Unix systems have readline built-in
+try:
+    import readline
+    HAVE_READLINE = True
+except ImportError:
+    # Try gnureadline for Termux
+    try:
+        import gnureadline as readline
+        HAVE_READLINE = True
+    except ImportError:
+        # On Windows, try pyreadline3
+        try:
+            import pyreadline3 as readline
+            HAVE_READLINE = True
+        except ImportError:
+            HAVE_READLINE = False
+
+# Detect environment
+IS_TERMUX = os.environ.get('TERMUX_VERSION') is not None
+IS_WINDOWS = sys.platform.startswith('win')
+
+# Additional setup for better Termux compatibility
+if HAVE_READLINE and IS_TERMUX:
+    try:
+        # Setup for Termux environment
+        # Some Termux environments might need special handling
+        # for proper tab completion
+        if hasattr(readline, 'set_completer_delims'):
+            # Set delimiters to properly detect @ symbol
+            readline.set_completer_delims(' \t\n;')
+    except:
+        pass
+
 # Set stdout to unbuffered for Termux compatibility
 class Unbuffered:
     def __init__(self, stream):
@@ -712,6 +746,8 @@ class ZAIClient:
         return {"error": "Failed after multiple retries"}
 
 
+
+
 class ComuxREPL:
     """Main REPL loop for Comux."""
 
@@ -722,6 +758,9 @@ class ComuxREPL:
         self.git_ops = GitOperations()
         self.client = ZAIClient()
         self.running = False
+
+        # For autocomplete
+        self._completion_matches = []
 
         # System prompt
         self.system_prompt = """You are Comux, an interactive command-line coding assistant. You help users with coding tasks by reading, creating, and editing files.
@@ -828,12 +867,90 @@ CRITICAL RULES:
         print(f"\n{Colors.BRIGHT_YELLOW}👋 Session ended{Colors.RESET}")
 
     def _get_input(self) -> str:
-        """Get input from user."""
+        """Get input from user with autocomplete support."""
         try:
-            line = input(Colors.prompt(">>> "))
-            return line
+            # If readline is available, use enhanced input
+            if HAVE_READLINE:
+                # Store original completer
+                old_completer = readline.get_completer()
+
+                # Set our file completer
+                readline.set_completer(self._file_completer)
+                readline.parse_and_bind("tab: complete")
+
+                # Get input
+                line = input(Colors.prompt(">>> "))
+
+                # Restore original completer
+                readline.set_completer(old_completer)
+
+                return line
+            else:
+                # Fallback to regular input
+                line = input(Colors.prompt(">>> "))
+                return line
         except EOFError:
             return "exit"
+
+    def _file_completer(self, text: str, state: int) -> Optional[str]:
+        """Completer function for file names after @."""
+        if state == 0:
+            # Generate matches on first call
+            line = readline.get_line_buffer()
+            cursor_pos = readline.get_endidx()
+
+            # Find the most recent @ symbol
+            at_pos = line.rfind('@', 0, cursor_pos)
+
+            if at_pos >= 0:
+                # We're after @, get the partial filename
+                partial = line[at_pos + 1:cursor_pos]
+
+                # Get matching files
+                self._completion_matches = []
+                all_files = self._get_project_files()
+
+                for file in all_files:
+                    if file.startswith(partial):
+                        # Return only the completion part (without the partial)
+                        completion = file[len(partial):]
+                        if completion:  # Only add if there's something to complete
+                            self._completion_matches.append(completion)
+            else:
+                # Not after @, no completion
+                self._completion_matches = []
+
+        # Return the match for this state
+        if state < len(self._completion_matches):
+            return self._completion_matches[state]
+        return None
+
+    def _get_project_files(self) -> List[str]:
+        """Get all files in the project, excluding common ignore patterns."""
+        files = []
+        ignore_dirs = {'.git', '__pycache__', 'node_modules', 'venv', 'env', '.venv',
+                      'dist', 'build', '.pytest_cache', '.tox', 'coverage'}
+
+        try:
+            for root, dirs, filenames in os.walk('.'):
+                # Filter out ignored directories
+                dirs[:] = [d for d in dirs if d not in ignore_dirs and not d.startswith('.')]
+
+                for filename in filenames:
+                    if not filename.startswith('.'):
+                        # Get relative path
+                        full_path = Path(root) / filename
+                        relative_path = str(full_path.relative_to(Path('.')))
+
+                        # Convert to forward slashes for consistency
+                        relative_path = relative_path.replace('\\', '/')
+
+                        files.append(relative_path)
+        except Exception as e:
+            # If there's an error, return empty list rather than crashing
+            pass
+
+        return sorted(files, key=str.lower)
 
     def _process_file_mentions(self, user_input: str) -> str:
         """Process file mentions in user input (e.g., @file.py)."""

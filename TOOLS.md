@@ -216,6 +216,24 @@ Membuat commit.
 }
 ```
 
+### File Reference dengan @ Symbol
+
+Anda bisa mereferensikan file dengan menggunakan `@filename`:
+```json
+{
+  "tool": "read_file",
+  "args": {
+    "path": "@comux.py"
+  }
+}
+```
+
+Saat mengetik di Comux:
+```bash
+>>> Perbaiki fungsi di @comu[TAB]
+# Akan autocomplete ke: @comux.py
+```
+
 ## 💡 **Contoh Penggunaan**
 
 ### Membuat project baru
@@ -273,6 +291,25 @@ AI: {
 }
 ```
 
+## 📱 **Termux Support**
+
+Comux memiliki dukungan penuh untuk Termux di Android:
+
+### Autocomplete di Termux:
+```bash
+# Instalasi jika tidak ada
+pkg install python
+pip install gnureadline  # Jika autocomplete tidak bekerja
+
+# Penggunaan
+comux
+>>> @fi[TAB]  # Akan menampilkan file yang cocok
+```
+
+### Requirements untuk Termux:
+- Python >= 3.7
+- `gnureadline` (opsional, untuk autocomplete)
+
 ## 📝 **Catatan Penting**
 
 1. **Security**: Semua operasi file dibatasi dalam working directory saat ini
@@ -280,6 +317,7 @@ AI: {
 3. **Path**: Gunakan relative path dari direktori saat ini
 4. **JSON Format**: Respons harus JSON valid saat menggunakan tools
 5. **Error Handling**: Semua error akan ditampilkan dengan pesan yang jelas
+6. **Termux**: File paths menggunakan forward slash (/) untuk konsistensi lintas platform
 
 ## 🚀 **Tips & Best Practices**
 

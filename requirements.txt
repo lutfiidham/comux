@@ -1,1 +1,9 @@
 requests>=2.31.0
+
+# For autocomplete support:
+# - Windows: pip install pyreadline3
+# - Termux/Android: pip install gnureadline (if needed)
+# - Linux/Mac: readline is usually built-in
+
+# Optional: gnureadline for Termux if autocomplete doesn't work
+# gnureadline>=8.2.4

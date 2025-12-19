@@ -21,6 +21,7 @@ An offline-first CLI tool for interactive coding sessions with AI assistance, de
 Comux provides 20+ AI-powered tools for coding assistance:
 
 ### File System
+
 - `read_file` - Read file contents
 - `write_file` - Write or overwrite files
 - `patch_file` - Apply unified diff patches
@@ -34,12 +35,15 @@ Comux provides 20+ AI-powered tools for coding assistance:
 - `get_file_info` - Get detailed file information
 
 ### Code Analysis
+
 - `search_in_files` - Search patterns across multiple files with regex support
 
 ### Shell Operations
+
 - `run_command` - Execute shell commands safely
 
 ### Git Operations
+
 - `git_status` - View git repository status
 - `git_diff` - View file changes
 - `git_log` - View commit history
@@ -48,31 +52,60 @@ Comux provides 20+ AI-powered tools for coding assistance:
 
 For complete documentation, see [TOOLS.md](TOOLS.md).
 
+### File Autocomplete
+
+When typing file references with `@filename`, you can use Tab completion:
+
+```bash
+# Type @ followed by Tab to see file suggestions
+>>> @com[TAB]  # Shows: @comux.py
+>>> read @[TAB] # Shows list of all files
+```
+
+To enable autocomplete on Windows, install:
+
+```bash
+pip install pyreadline3
+```
+
+On Linux/Mac, autocomplete should work out of the box.
+
 ## Installation
 
 ### On Android/Termux
 
 ```bash
-# Install Python and pip
-pkg update && pkg install python
-
-# Clone or download comux
-git clone https://github.com/yourusername/comux.git
+# Method 1: Automated setup (recommended)
+git clone https://github.com/lutfiidham/comux.git
 cd comux
+chmod +x setup_termux.sh
+./setup_termux.sh
 
-# Install dependencies
+# Method 2: Manual setup
+# Install Python and required packages
+pkg update && pkg install python clang make libffi
+
+# Install Python dependencies
 pip install -r requirements.txt
+# If autocomplete doesn't work, install: pip install gnureadline
 
-# Method 1: Direct installation (recommended)
+# Install Comux
 pip install -e .
 
-# Method 2: Create symlink in Termux user bin
+# Create command alias
+echo 'alias comux="python -m comux"' >> ~/.bashrc
+source ~/.bashrc
+
+# Method 3: Create symlink
 ln -sf "$(pwd)/comux.py" ~/../usr/bin/comux
 chmod +x ~/../usr/bin/comux
-
-# Method 3: Use the provided install script
-bash install_comux.sh
 ```
+
+**Autocomplete in Termux:**
+
+- Most Termux environments have readline built-in
+- If autocomplete doesn't work, install: `pip install gnureadline`
+- Use Tab after `@` for file completion: `@filename[TAB]`
 
 ### Using pip (recommended for non-Termux systems)
 
@@ -159,6 +192,7 @@ When the assistant needs to interact with files, it responds with JSON:
 ```
 
 Available tools:
+
 - `read_file`: Read file contents
 - `write_file`: Create or overwrite a file
 - `patch_file`: Apply a unified diff patch
