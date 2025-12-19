@@ -871,18 +871,68 @@ CRITICAL RULES:
         try:
             # If readline is available, use enhanced input
             if HAVE_READLINE:
-                # Store original completer
+                # Store original settings
                 old_completer = readline.get_completer()
+                old_delims = readline.get_completer_delims() if hasattr(readline, 'get_completer_delims') else ' \t\n"\'`@$><=;|&{('
 
-                # Set our file completer
-                readline.set_completer(self._file_completer)
+                # Set @ as part of word so we get the whole @filename as 'text'
+                readline.set_completer_delims(' \t\n')
+
+                # Custom completer for @filename
+                def completer(text, state):
+                    # Only complete if the text starts with @ or contains @
+                    if '@' in text:
+                        # Find the position of @
+                        at_pos = text.find('@')
+
+                        if at_pos == 0:
+                            # Text starts with @, get the filename part
+                            partial = text[1:]  # Remove @
+                        else:
+                            # @ is in the middle, extract filename part after @
+                            partial = text[at_pos + 1:]
+
+                        # Get matching files
+                        matches = []
+                        all_files = self._get_project_files()
+
+                        # Case-sensitive match first
+                        for file in all_files:
+                            if file.startswith(partial):
+                                # Return the full filename (text[@pos] + file)
+                                if at_pos == 0:
+                                    matches.append(file)
+                                else:
+                                    matches.append(text[:at_pos] + file)
+
+                        # If no case-sensitive matches, try case-insensitive
+                        if not matches and partial:
+                            partial_lower = partial.lower()
+                            for file in all_files:
+                                if file.lower().startswith(partial_lower):
+                                    if at_pos == 0:
+                                        matches.append(file)
+                                    else:
+                                        matches.append(text[:at_pos] + file)
+
+                        # Return the match for this state
+                        if state < len(matches):
+                            return matches[state]
+
+                    # Not a @filename completion
+                    return None
+
+                # Setup completion
+                readline.set_completer(completer)
                 readline.parse_and_bind("tab: complete")
 
                 # Get input
                 line = input(Colors.prompt(">>> "))
 
-                # Restore original completer
+                # Restore original settings
                 readline.set_completer(old_completer)
+                if hasattr(readline, 'set_completer_delims'):
+                    readline.set_completer_delims(old_delims)
 
                 return line
             else:
@@ -892,39 +942,7 @@ CRITICAL RULES:
         except EOFError:
             return "exit"
 
-    def _file_completer(self, text: str, state: int) -> Optional[str]:
-        """Completer function for file names after @."""
-        if state == 0:
-            # Generate matches on first call
-            line = readline.get_line_buffer()
-            cursor_pos = readline.get_endidx()
-
-            # Find the most recent @ symbol
-            at_pos = line.rfind('@', 0, cursor_pos)
-
-            if at_pos >= 0:
-                # We're after @, get the partial filename
-                partial = line[at_pos + 1:cursor_pos]
-
-                # Get matching files
-                self._completion_matches = []
-                all_files = self._get_project_files()
-
-                for file in all_files:
-                    if file.startswith(partial):
-                        # Return only the completion part (without the partial)
-                        completion = file[len(partial):]
-                        if completion:  # Only add if there's something to complete
-                            self._completion_matches.append(completion)
-            else:
-                # Not after @, no completion
-                self._completion_matches = []
-
-        # Return the match for this state
-        if state < len(self._completion_matches):
-            return self._completion_matches[state]
-        return None
-
+    
     def _get_project_files(self) -> List[str]:
         """Get all files in the project, excluding common ignore patterns."""
         files = []

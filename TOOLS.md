@@ -228,11 +228,19 @@ Anda bisa mereferensikan file dengan menggunakan `@filename`:
 }
 ```
 
-Saat mengetik di Comux:
+**Autocomplete di Comux:**
 ```bash
->>> Perbaiki fungsi di @comu[TAB]
-# Akan autocomplete ke: @comux.py
+>>> Baca @RE[TAB]         # → @README.md
+>>> Edit @com[TAB]        # → @comux.py
+>>> Lihat @sr[TAB]        # → @src/ (jika ada folder src)
+>>> Cari @[TAB]           # Menampilkan semua file
 ```
+
+**Fitur Autocomplete:**
+- **Case-sensitive**: `@RE` → `@README.md`
+- **Case-insensitive**: `@re` → `@README.md` (fallback)
+- **Subdirectories**: `@src/mai[TAB]` → `@src/main.py`
+- **Multiple matches**: Tekan Tab berulang untuk cycle melalui options
 
 ## 💡 **Contoh Penggunaan**
 

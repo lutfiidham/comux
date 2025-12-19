@@ -57,18 +57,23 @@ For complete documentation, see [TOOLS.md](TOOLS.md).
 When typing file references with `@filename`, you can use Tab completion:
 
 ```bash
-# Type @ followed by Tab to see file suggestions
->>> @com[TAB]  # Shows: @comux.py
->>> read @[TAB] # Shows list of all files
+# Type @ followed by partial filename, then Tab
+>>> @RE[TAB]         # Autocompletes to: @README.md
+>>> @comu[TAB]       # Autocompletes to: @comux.py
+>>> @src/[TAB]       # Shows all files in src/ directory
+>>> read @[TAB]       # Shows all available files
 ```
 
-To enable autocomplete on Windows, install:
+**Features:**
+- Case-sensitive matching (primary)
+- Case-insensitive fallback
+- Works with subdirectories
+- Skips hidden files and cache folders
 
-```bash
-pip install pyreadline3
-```
-
-On Linux/Mac, autocomplete should work out of the box.
+**Requirements:**
+- **Linux/Mac**: Built-in readline support
+- **Windows**: `pip install pyreadline3`
+- **Termux**: Usually built-in, or `pip install gnureadline` if needed
 
 ## Installation
 
