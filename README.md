@@ -35,7 +35,7 @@ ln -sf "$(pwd)/comux.py" ~/../usr/bin/comux
 chmod +x ~/../usr/bin/comux
 
 # Method 3: Use the provided install script
-bash install_termux.sh
+bash install_comux.sh
 ```
 
 ### Using pip (recommended for non-Termux systems)
@@ -127,6 +127,36 @@ Available tools:
 - `write_file`: Create or overwrite a file
 - `patch_file`: Apply a unified diff patch
 - `list_files`: List directory contents
+
+## Updating Comux
+
+### Method 1: Quick Update (from anywhere)
+
+```bash
+# Create a global update command
+echo 'alias comux-update="python ~/comux/quick_update.py"' >> ~/.bashrc
+source ~/.bashrc
+
+# Now update anytime with
+comux-update
+```
+
+### Method 2: Manual Update
+
+```bash
+cd ~/comux
+./update.sh
+```
+
+### Method 3: Using Git
+
+```bash
+cd ~/comux
+git stash  # Save local changes
+git pull   # Pull updates
+git stash pop  # Restore changes
+pip install -e .  # Reinstall
+```
 
 ## Session Management
 

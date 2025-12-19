@@ -16,10 +16,28 @@ ln -sf "$(pwd)/comux.py" ~/../usr/bin/comux
 chmod +x comux.py
 chmod +x ~/../usr/bin/comux
 
+# Create update alias in bashrc
+BASHRC="$HOME/.bashrc"
+if [ -f "$BASHRC" ]; then
+    # Remove existing alias if any
+    sed -i '/alias comux-update=/d' "$BASHRC"
+
+    # Add new alias
+    echo "" >> "$BASHRC"
+    echo "# Comux update alias" >> "$BASHRC"
+    echo "alias comux-update=\"python $(pwd)/quick_update.py\"" >> "$BASHRC"
+
+    echo "✅ Update alias added to .bashrc"
+fi
+
+# Source bashrc to make alias available immediately
+source "$BASHRC" 2>/dev/null || true
+
 # Verify installation
 if command -v comux &> /dev/null; then
     echo "✅ comux installed successfully!"
     echo "Run 'comux' to start"
+    echo "Run 'comux-update' to update from GitHub"
 else
     echo "❌ Installation failed"
     echo "Make sure ~/../usr/bin is in your PATH"

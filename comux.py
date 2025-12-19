@@ -42,14 +42,18 @@ class LoadingIndicator:
         self.running = False
         if self.thread:
             self.thread.join()
-        # Clear the line
+        # Clear the line and move to beginning of line
         sys.stdout.write('\r' + ' ' * (len(self.message) + 3) + '\r')
         sys.stdout.flush()
 
     def _animate(self):
         """Internal animation loop."""
+        # Small delay to ensure previous operations complete
+        time.sleep(0.01)
         while self.running:
-            sys.stdout.write(f'\r{self.message} {next(self.spinner)}')
+            # Write carriage return to go to beginning of line
+            sys.stdout.write('\r')
+            sys.stdout.write(f'{self.message} {next(self.spinner)}')
             sys.stdout.flush()
             time.sleep(0.1)
 
@@ -390,6 +394,10 @@ Environment:
 
     def _get_ai_response(self) -> Optional[str]:
         """Get response from AI model."""
+        # Print newline and flush to ensure cursor moves to next line
+        print()
+        sys.stdout.flush()
+
         loading = LoadingIndicator("Thinking")
         loading.start()
 
