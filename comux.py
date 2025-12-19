@@ -695,7 +695,7 @@ class ZAIClient:
         self.base_url = "https://api.z.ai/api/coding/paas/v4/chat/completions"
         self.model = "glm-4.6"
 
-    def chat(self, messages: List[Dict[str, str]]) -> Optional[Dict[str, Any]]:
+    def chat(self, messages: List[Dict[str, str]], stream: bool = False) -> Optional[Dict[str, Any]]:
         """Send chat request to Z.ai API."""
         if not self.api_key:
             return {"error": "ZAI_API_KEY environment variable not set"}
@@ -709,7 +709,8 @@ class ZAIClient:
             "model": self.model,
             "messages": messages,
             "temperature": 0.7,
-            "max_tokens": 8000  # Increased to prevent truncation
+            "max_tokens": 8000,  # Increased to prevent truncation
+            "stream": stream  # Enable streaming
         }
 
         # Retry mechanism
@@ -723,14 +724,17 @@ class ZAIClient:
                     headers=headers,
                     json=payload,
                     timeout=timeouts[attempt],
-                    stream=False
+                    stream=stream  # Important: enable streaming in request
                 )
 
                 # Debug: print status
                 if response.status_code != 200:
                     return {"error": f"API returned status {response.status_code}: {response.text[:200]}"}
 
-                return response.json()
+                if stream:
+                    return response  # Return response object for streaming
+                else:
+                    return response.json()
             except requests.exceptions.Timeout:
                 if attempt < max_retries - 1:
                     # Don't print for first retry to avoid noise
@@ -744,6 +748,53 @@ class ZAIClient:
                 return {"error": f"API request failed: {str(e)}"}
 
         return {"error": "Failed after multiple retries"}
+
+    def stream_chat(self, messages: List[Dict[str, str]]) -> Optional[str]:
+        """Stream chat response and return the complete text."""
+        response = self.chat(messages, stream=True)
+
+        if not response:
+            return None
+
+        if hasattr(response, 'raise_for_status'):
+            try:
+                response.raise_for_status()
+            except:
+                return None
+
+        full_content = ""
+
+        try:
+            for line in response.iter_lines():
+                if line:
+                    # Remove "data: " prefix if present
+                    line = line.decode('utf-8')
+                    if line.startswith('data: '):
+                        line = line[6:]
+
+                    # Skip empty lines or "[DONE]"
+                    if not line or line == "[DONE]":
+                        continue
+
+                    try:
+                        data = json.loads(line)
+                        if 'choices' in data and len(data['choices']) > 0:
+                            delta = data['choices'][0].get('delta', {})
+                            if 'content' in delta:
+                                content = delta['content']
+                                full_content += content
+                                yield content  # Yield chunk for immediate display
+                    except json.JSONDecodeError:
+                        # If not JSON, try to use as plain text
+                        full_content += line
+                        yield line
+        except Exception as e:
+            # If streaming fails, return the accumulated content
+            if full_content:
+                return full_content
+            return None
+
+        return full_content
 
 
 
@@ -761,6 +812,9 @@ class ComuxREPL:
 
         # For autocomplete
         self._completion_matches = []
+
+        # Streaming settings
+        self.enable_streaming = os.environ.get('COMUX_STREAM', 'true').lower() != 'false'
 
         # System prompt
         self.system_prompt = """You are Comux, an interactive command-line coding assistant. You help users with coding tasks by reading, creating, and editing files.
@@ -1192,12 +1246,43 @@ CRITICAL RULES:
         print()
 
     def _get_ai_response(self) -> Optional[str]:
-        """Get response from AI model."""
+        """Get response from AI model with streaming."""
+        # Check if streaming is enabled
+        if self.enable_streaming:
+            # Try streaming first
+            try:
+                response_chunks = []
+                first_chunk = True
+
+                for chunk in self.client.stream_chat(self.session.messages):
+                    if chunk is None:
+                        break
+
+                    # For the first chunk, replace the "Thinking..." indicator
+                    if first_chunk:
+                        # Clear the loading indicator and start fresh
+                        sys.stdout.write("\r" + " " * 20 + "\r")  # Clear "Thinking..."
+                        first_chunk = False
+
+                    # Print the chunk immediately without newline
+                    sys.stdout.write(chunk)
+                    sys.stdout.flush()
+                    response_chunks.append(chunk)
+
+                if response_chunks:
+                    # Add newline after complete response
+                    sys.stdout.write("\n")
+                    return ''.join(response_chunks)
+            except Exception as e:
+                # If streaming fails, fall back to non-streaming
+                pass
+
+        # Fallback to non-streaming mode
         loading = LoadingIndicator("Thinking")
         loading.start()
 
         try:
-            response = self.client.chat(self.session.messages)
+            response = self.client.chat(self.session.messages, stream=False)
             if response and 'choices' in response:
                 return response['choices'][0]['message']['content']
             elif response and 'error' in response:

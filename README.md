@@ -90,6 +90,25 @@ export COMUX_READLINE_SETTINGS="set horizontal-scroll-mode On"
 export COMUX_READLINE_SETTINGS="set bell-style none,set editing-mode vi"
 ```
 
+### Response Streaming
+
+Comux now supports streaming responses for real-time output:
+
+```bash
+# Enable streaming (default)
+comux
+
+# Disable streaming if needed
+export COMUX_STREAM=false
+comux
+```
+
+With streaming enabled, you'll see responses appear word by word, just like ChatGPT:
+```bash
+>>> Explain quantum computing
+Quantum computing is a revolutionary approach to computation that leverages the principles of quantum mechanics...
+```
+
 ## Installation
 
 ### On Android/Termux
