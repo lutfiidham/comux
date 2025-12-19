@@ -49,10 +49,10 @@ class LoadingIndicator:
     def _animate(self):
         """Internal animation loop."""
         # Small delay to ensure previous operations complete
-        time.sleep(0.01)
+        time.sleep(0.02)
         while self.running:
-            # Write carriage return to go to beginning of line
-            sys.stdout.write('\r')
+            # Clear entire line and write spinner
+            sys.stdout.write('\r\033[K')  # \r=carriage return, \033[K=clear line
             sys.stdout.write(f'{self.message} {next(self.spinner)}')
             sys.stdout.flush()
             time.sleep(0.1)
@@ -316,6 +316,10 @@ Rules:
                 # Add user message
                 self.session.add_message("user", user_input)
 
+                # Clear any remaining prompt characters
+                sys.stdout.write('\r')
+                sys.stdout.flush()
+
                 # Get AI response
                 response = self._get_ai_response()
                 if response:
@@ -394,10 +398,6 @@ Environment:
 
     def _get_ai_response(self) -> Optional[str]:
         """Get response from AI model."""
-        # Print newline and flush to ensure cursor moves to next line
-        print()
-        sys.stdout.flush()
-
         loading = LoadingIndicator("Thinking")
         loading.start()
 
