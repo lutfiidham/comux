@@ -8,6 +8,7 @@ An offline-first CLI tool for interactive coding sessions with AI assistance, de
 - **File Operations**: Read, create, and edit files safely
 - **Session Memory**: Automatically saves and resumes conversations
 - **Tool Calling**: Structured JSON-based tool invocation
+- **Loading Indicator**: Animated spinner while waiting for AI responses
 - **Offline-First**: Works without internet except for API calls
 - **Minimal Dependencies**: Only requires `requests` library
 
@@ -26,14 +27,18 @@ cd comux
 # Install dependencies
 pip install -r requirements.txt
 
-# Make comux executable
-chmod +x comux.py
+# Method 1: Direct installation (recommended)
+pip install -e .
 
-# Create global command (optional)
-sudo ln -s $(pwd)/comux.py /usr/local/bin/comux
+# Method 2: Create symlink in Termux user bin
+ln -sf "$(pwd)/comux.py" ~/../usr/bin/comux
+chmod +x ~/../usr/bin/comux
+
+# Method 3: Use the provided install script
+bash install_termux.sh
 ```
 
-### Using pip (recommended)
+### Using pip (recommended for non-Termux systems)
 
 ```bash
 pip install comux
@@ -159,8 +164,11 @@ echo 'export ZAI_API_KEY=your_key_here' >> ~/.bashrc
 # Make comux executable
 chmod +x comux.py
 
-# Or install globally
-sudo pip install comux
+# On Termux, install without sudo
+pip install -e .
+
+# Or create symlink manually
+ln -sf "$(pwd)/comux.py" ~/../usr/bin/comux
 ```
 
 ### Network Issues

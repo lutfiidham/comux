@@ -11,11 +11,47 @@ import sys
 import subprocess
 import tempfile
 import difflib
+import threading
+import time
+import itertools
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 
 import requests
+
+
+class LoadingIndicator:
+    """Animated loading indicator for long-running operations."""
+
+    def __init__(self, message="Thinking"):
+        self.message = message
+        self.running = False
+        self.thread = None
+        self.spinner = itertools.cycle(['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'])
+
+    def start(self):
+        """Start the loading animation."""
+        self.running = True
+        self.thread = threading.Thread(target=self._animate)
+        self.thread.daemon = True
+        self.thread.start()
+
+    def stop(self):
+        """Stop the loading animation."""
+        self.running = False
+        if self.thread:
+            self.thread.join()
+        # Clear the line
+        sys.stdout.write('\r' + ' ' * (len(self.message) + 3) + '\r')
+        sys.stdout.flush()
+
+    def _animate(self):
+        """Internal animation loop."""
+        while self.running:
+            sys.stdout.write(f'\r{self.message} {next(self.spinner)}')
+            sys.stdout.flush()
+            time.sleep(0.1)
 
 
 class ComuxSession:
@@ -354,12 +390,18 @@ Environment:
 
     def _get_ai_response(self) -> Optional[str]:
         """Get response from AI model."""
-        response = self.client.chat(self.session.messages)
-        if response and 'choices' in response:
-            return response['choices'][0]['message']['content']
-        elif response and 'error' in response:
-            return f"API Error: {response['error']}"
-        return None
+        loading = LoadingIndicator("Thinking")
+        loading.start()
+
+        try:
+            response = self.client.chat(self.session.messages)
+            if response and 'choices' in response:
+                return response['choices'][0]['message']['content']
+            elif response and 'error' in response:
+                return f"API Error: {response['error']}"
+            return None
+        finally:
+            loading.stop()
 
     def _is_tool_call(self, response: str) -> bool:
         """Check if response is a tool call."""
