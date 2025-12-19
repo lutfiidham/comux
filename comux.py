@@ -32,16 +32,135 @@ class Unbuffered:
 
 sys.stdout = Unbuffered(sys.stdout)
 
+# Color class for terminal output
+class Colors:
+    # Check if terminal supports colors
+    _supports_color = None
+
+    @classmethod
+    def _check_color_support(cls):
+        """Check if terminal supports colors."""
+        if cls._supports_color is not None:
+            return cls._supports_color
+
+        # Check TERM environment variable
+        term = os.getenv('TERM', '').lower()
+        colorterm = os.getenv('COLORTERM', '').lower()
+
+        # Check for color support
+        if colorterm in ['truecolor', '24bit']:
+            cls._supports_color = True
+        elif 'color' in term or term in ['xterm-256color', 'screen-256color', 'tmux-256color']:
+            cls._supports_color = True
+        elif os.isatty(1):  # Check if stdout is a terminal
+            # Try to get color count
+            try:
+                import curses
+                curses.setupterm()
+                colors = curses.tigetnum('colors')
+                cls._supports_color = colors >= 8
+            except:
+                # Fallback: try a simple test
+                cls._supports_color = True
+        else:
+            cls._supports_color = False
+
+        return cls._supports_color
+
+    # Define colors that work in most terminals
+    if _check_color_support():
+        # ANSI color codes
+        RESET = '\033[0m'
+        BOLD = '\033[1m'
+        DIM = '\033[2m'
+
+        # Basic colors (works on 8-color terminals)
+        RED = '\033[31m'
+        GREEN = '\033[32m'
+        YELLOW = '\033[33m'
+        BLUE = '\033[34m'
+        MAGENTA = '\033[35m'
+        CYAN = '\033[36m'
+        WHITE = '\033[37m'
+
+        # Try bright colors (may not work everywhere)
+        BRIGHT_RED = '\033[91m'
+        BRIGHT_GREEN = '\033[92m'
+        BRIGHT_YELLOW = '\033[93m'
+        BRIGHT_BLUE = '\033[94m'
+        BRIGHT_MAGENTA = '\033[95m'
+        BRIGHT_CYAN = '\033[96m'
+        BRIGHT_WHITE = '\033[97m'
+    else:
+        # No color support
+        RESET = ''
+        BOLD = ''
+        DIM = ''
+        RED = GREEN = YELLOW = BLUE = MAGENTA = CYAN = WHITE = ''
+        BRIGHT_RED = BRIGHT_GREEN = BRIGHT_YELLOW = ''
+        BRIGHT_BLUE = BRIGHT_MAGENTA = BRIGHT_CYAN = BRIGHT_WHITE = ''
+
+    @classmethod
+    def colorize(cls, text, color):
+        """Apply color to text."""
+        return f"{color}{text}{cls.RESET}"
+
+    @classmethod
+    def success(cls, text):
+        """Green text for success."""
+        return cls.colorize(text, cls.BRIGHT_GREEN)
+
+    @classmethod
+    def error(cls, text):
+        """Red text for errors."""
+        return cls.colorize(text, cls.BRIGHT_RED)
+
+    @classmethod
+    def warning(cls, text):
+        """Yellow text for warnings."""
+        return cls.colorize(text, cls.BRIGHT_YELLOW)
+
+    @classmethod
+    def info(cls, text):
+        """Blue text for info."""
+        return cls.colorize(text, cls.BRIGHT_BLUE)
+
+    @classmethod
+    def cyan(cls, text):
+        """Cyan text."""
+        return cls.colorize(text, cls.CYAN)
+
+    @classmethod
+    def magenta(cls, text):
+        """Magenta text."""
+        return cls.colorize(text, cls.MAGENTA)
+
+    @classmethod
+    def prompt(cls, text):
+        """Cyan bold for prompts."""
+        return cls.colorize(text, cls.BOLD + cls.CYAN)
+
+    @classmethod
+    def header(cls, text):
+        """Blue bold for headers."""
+        return cls.colorize(text, cls.BOLD + cls.BRIGHT_BLUE)
+
 
 class LoadingIndicator:
     """Animated loading indicator for long-running operations."""
 
     def __init__(self, message="Thinking"):
-        self.message = message
+        self.message = Colors.cyan(message)
         self.running = False
         self.thread = None
-        # Use simple characters compatible with Termux
-        self.spinner = itertools.cycle(['|', '/', '-', '\\'])
+        # Use colored spinners
+        self.spinners = [
+            f"{Colors.YELLOW}|{Colors.RESET}",
+            f"{Colors.YELLOW}/{Colors.RESET}",
+            f"{Colors.YELLOW}-{Colors.RESET}",
+            f"{Colors.YELLOW}\\{Colors.RESET}"
+        ]
+        self.spinner = itertools.cycle(self.spinners)
         self.last_len = 0
 
     def start(self):
@@ -70,7 +189,7 @@ class LoadingIndicator:
         # Small initial delay
         time.sleep(0.1)
         while self.running:
-            # Build the spinner line
+            # Build the spinner line with colors
             spinner_char = next(self.spinner)
             line = f'{self.message} {spinner_char}'
             self.last_len = len(line)
@@ -352,8 +471,10 @@ CRITICAL RULES:
     def start(self):
         """Start the REPL session."""
         self.running = True
-        print("🚀 Comux - Interactive Coding Assistant")
-        print("Type 'help' for commands or 'exit' to quit")
+
+        # Colored welcome message
+        print(f"\n{Colors.BRIGHT_YELLOW}🚀 {Colors.BRIGHT_CYAN}Comux{Colors.RESET} {Colors.BRIGHT_WHITE}- Interactive Command-Line Coding Assistant{Colors.RESET}")
+        print(f"{Colors.DIM}Type {Colors.CYAN}'help'{Colors.DIM} for commands or {Colors.CYAN}'exit'{Colors.DIM} to quit{Colors.RESET}\n")
 
         # Initialize session with system prompt if empty
         if not self.session.messages:
@@ -381,33 +502,38 @@ CRITICAL RULES:
                     # Debug: check if response looks like JSON but incomplete
                     response_stripped = response.strip()
                     if response_stripped.startswith('{') and not response_stripped.endswith('}'):
-                        print("\n⚠️  Incomplete JSON response from AI")
-                        print("Raw response:", response[:100] + "..." if len(response) > 100 else response)
+                        print(f"\n{Colors.warning('⚠️  Incomplete JSON response from AI')}")
+                        print(f"{Colors.DIM}Raw response:{Colors.RESET} {response[:100] + '...' if len(response) > 100 else response}")
                         continue
 
                     # Handle tool calls or plain text
                     if self._is_tool_call(response):
                         result = self._execute_tool_call(response)
-                        print(result)
+                        if result.startswith("✅") or result.startswith("Created") or result.startswith("File"):
+                            print(Colors.success(result))
+                        elif result.startswith("❌") or result.startswith("Error"):
+                            print(Colors.error(result))
+                        else:
+                            print(Colors.cyan(result))
                         # Add result to conversation
                         self.session.add_message("assistant", f"Tool result: {result}")
                     else:
-                        print(response)
+                        print(Colors.BRIGHT_WHITE + response)
                         self.session.add_message("assistant", response)
 
             except KeyboardInterrupt:
-                print("\nUse 'exit' to quit")
+                print(f"\n{Colors.WARNING}Use {Colors.CYAN}'exit'{Colors.WARNING} to quit{Colors.RESET}")
             except EOFError:
                 break
             except Exception as e:
-                print(f"Error: {e}")
+                print(f"{Colors.error(f'Error: {e}')}{Colors.RESET}")
 
-        print("\n👋 Session ended")
+        print(f"\n{Colors.BRIGHT_YELLOW}👋 Session ended{Colors.RESET}")
 
     def _get_input(self) -> str:
         """Get input from user."""
         try:
-            line = input(">>> ")
+            line = input(Colors.prompt(">>> "))
             return line
         except EOFError:
             return "exit"
@@ -466,12 +592,12 @@ CRITICAL RULES:
 
     def _offline_mode(self):
         """Create files without API when timeout occurs."""
-        print("\n📝 Offline Mode - Creating file locally...")
+        print(f"\n{Colors.BRIGHT_CYAN}📝 Offline Mode - Creating file locally...{Colors.RESET}")
 
         # Get file path from user
-        path = input("Enter file path (e.g., index.html): ").strip()
+        path = input(f"{Colors.CYAN}Enter file path (e.g., index.html): {Colors.RESET}").strip()
         if not path:
-            print("No file path provided")
+            print(f"{Colors.WARNING}No file path provided{Colors.RESET}")
             return
 
         # Default content based on extension
@@ -555,38 +681,43 @@ CRITICAL RULES:
         # Write file
         result = self.file_ops.write_file(path, content)
         if result.get('success'):
-            print(f"✅ Created {path}")
+            print(f"\n{Colors.success(f'✅ Created {path}')}")
         else:
-            print(f"❌ Error: {result.get('error')}")
+            print(f"\n{Colors.error(f'❌ Error: {result.get(\"error\")}')}")
 
     def _show_help(self):
         """Show help information."""
-        help_text = """
-Comux Commands:
-  exit, quit    - Exit the session
-  help          - Show this help
-  clear         - Clear the screen
-  offline       - Create files without AI (when API is slow)
+        # Header
+        print(f"\n{Colors.BRIGHT_CYAN}╭───────── Comux Commands ─────────╮{Colors.RESET}")
+        print(f"{Colors.CYAN}│{Colors.RESET} {Colors.BRIGHT_YELLOW}exit, quit{Colors.RESET}    - Exit the session")
+        print(f"{Colors.CYAN}│{Colors.RESET} {Colors.BRIGHT_YELLOW}help{Colors.RESET}          - Show this help")
+        print(f"{Colors.CYAN}│{Colors.RESET} {Colors.BRIGHT_YELLOW}clear{Colors.RESET}         - Clear the screen")
+        print(f"{Colors.CYAN}│{Colors.RESET} {Colors.BRIGHT_YELLOW}offline{Colors.RESET}       - Create files without AI (when API is slow)")
+        print(f"{Colors.BRIGHT_CYAN}╰───────────────────────────────────╯{Colors.RESET}")
 
-Usage:
-  - Type natural language instructions
-  - Use @filename to include file content in your prompt
-  Examples:
-    * "Explain what @script.py does"
-    * "Fix the bug in @app.js"
-    * "Refactor @utils.py to use list comprehensions"
-    * "Create a beautiful index.html file"
-  - AI will respond with text or JSON tool calls
-  - File operations require confirmation
+        # Usage
+        print(f"\n{Colors.BRIGHT_BLUE}Usage:{Colors.RESET}")
+        print(f"  • Type natural language instructions")
+        print(f"  • Use {Colors.GREEN}@filename{Colors.RESET} to include file content in your prompt")
 
-Tips:
-  - If API times out, use 'offline' command to create templates
-  - Supports HTML, CSS, JS, Python files in offline mode
+        print(f"\n{Colors.BRIGHT_MAGENTA}Examples:{Colors.RESET}")
+        print(f"  • {Colors.DIM}\"Explain what {Colors.GREEN}@script.py{Colors.DIM} does\"{Colors.RESET}")
+        print(f"  • {Colors.DIM}\"Fix the bug in {Colors.GREEN}@app.js{Colors.DIM}\"{Colors.RESET}")
+        print(f"  • {Colors.DIM}\"Refactor {Colors.GREEN}@utils.py{Colors.DIM} to use list comprehensions\"{Colors.RESET}")
+        print(f"  • {Colors.DIM}\"Create a beautiful {Colors.GREEN}index.html{Colors.DIM} file\"{Colors.RESET}")
 
-Environment:
-  ZAI_API_KEY   - Your Z.ai API key (required)
-        """
-        print(help_text)
+        print(f"\n{Colors.BRIGHT_BLUE}Features:{Colors.RESET}")
+        print(f"  • AI responds with text or JSON tool calls")
+        print(f"  • File operations require confirmation")
+        print(f"  • Colored output for better readability")
+
+        print(f"\n{Colors.BRIGHT_YELLOW}Tips:{Colors.RESET}")
+        print(f"  • If API times out, use {Colors.CYAN}'offline'{Colors.RESET} command to create templates")
+        print(f"  • Supports HTML, CSS, JS, Python files in offline mode")
+
+        print(f"\n{Colors.DIM}Environment:{Colors.RESET}")
+        print(f"  • {Colors.BRIGHT_CYAN}ZAI_API_KEY{Colors.RESET} - Your Z.ai API key (required)")
+        print()
 
     def _get_ai_response(self) -> Optional[str]:
         """Get response from AI model."""
