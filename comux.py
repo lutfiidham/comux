@@ -20,6 +20,18 @@ from typing import Dict, List, Optional, Any, Tuple
 
 import requests
 
+# Set stdout to unbuffered for Termux compatibility
+class Unbuffered:
+    def __init__(self, stream):
+        self.stream = stream
+    def write(self, data):
+        self.stream.write(data)
+        self.stream.flush()
+    def __getattr__(self, attr):
+        return getattr(self.stream, attr)
+
+sys.stdout = Unbuffered(sys.stdout)
+
 
 class LoadingIndicator:
     """Animated loading indicator for long-running operations."""
@@ -30,6 +42,7 @@ class LoadingIndicator:
         self.thread = None
         # Use simple characters compatible with Termux
         self.spinner = itertools.cycle(['|', '/', '-', '\\'])
+        self.last_len = 0
 
     def start(self):
         """Start the loading animation."""
@@ -42,21 +55,31 @@ class LoadingIndicator:
         """Stop the loading animation."""
         self.running = False
         if self.thread:
-            self.thread.join(timeout=0.2)  # Add timeout
-        # Clear the line completely
-        sys.stdout.write('\r' + ' ' * 50 + '\r')
-        sys.stdout.flush()
+            self.thread.join(timeout=0.3)
+        # Clear the entire line
+        self._clear_line()
+
+    def _clear_line(self):
+        """Clear the current line."""
+        if self.last_len > 0:
+            sys.stdout.write('\r' + ' ' * self.last_len + '\r')
+            self.last_len = 0
 
     def _animate(self):
         """Internal animation loop."""
-        # Ensure we start on a clean line
-        time.sleep(0.05)
+        # Small initial delay
+        time.sleep(0.1)
         while self.running:
-            # Use simple string operations for Termux compatibility
-            line = f'\r{self.message} {next(self.spinner)}'
-            sys.stdout.write(line)
-            sys.stdout.flush()
-            time.sleep(0.15)
+            # Build the spinner line
+            spinner_char = next(self.spinner)
+            line = f'{self.message} {spinner_char}'
+            self.last_len = len(line)
+
+            # Write with carriage return
+            sys.stdout.write('\r' + line)
+            # No need to flush with Unbuffered class
+
+            time.sleep(0.2)
 
 
 class ComuxSession:
@@ -323,11 +346,11 @@ Rules:
                     # Handle tool calls or plain text
                     if self._is_tool_call(response):
                         result = self._execute_tool_call(response)
-                        print(f"\n{result}")
+                        print(result)
                         # Add result to conversation
                         self.session.add_message("assistant", f"Tool result: {result}")
                     else:
-                        print(f"\n{response}")
+                        print(response)
                         self.session.add_message("assistant", response)
 
             except KeyboardInterrupt:
@@ -417,6 +440,8 @@ Environment:
             return None
         finally:
             loading.stop()
+            # Small delay to ensure line is clear
+            time.sleep(0.1)
 
     def _is_tool_call(self, response: str) -> bool:
         """Check if response is a tool call."""
