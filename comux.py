@@ -683,7 +683,8 @@ CRITICAL RULES:
         if result.get('success'):
             print(f"\n{Colors.success(f'✅ Created {path}')}")
         else:
-            print(f"\n{Colors.error(f'❌ Error: {result.get(\"error\")}')}")
+            error_msg = result.get('error', 'Unknown error')
+            print(f"\n{Colors.error(f'❌ Error: {error_msg}')}")
 
     def _show_help(self):
         """Show help information."""
